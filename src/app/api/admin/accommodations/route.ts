@@ -5,7 +5,7 @@ import {
     updateAccommodationListing,
     deleteAccommodationListing
 } from '@/lib/googleSheets';
-import { uploadFile, deleteFile } from '@/lib/googleDrive';
+import { uploadToCloudinary, deleteFromCloudinary } from '@/lib/cloudinary';
 import { isAuthenticated, unauthorizedResponse } from '@/lib/adminAuth';
 
 export async function GET(request: NextRequest) {
@@ -58,12 +58,9 @@ export async function POST(request: NextRequest) {
 
         if (!imageUrl && file) {
             try {
-                const driveFile = await uploadFile(file);
-                fileId = driveFile.id || '';
-                imageUrl = driveFile.webViewLink || '';
-                if (driveFile.thumbnailLink) {
-                    imageUrl = driveFile.thumbnailLink.replace('=s220', '=s1000');
-                }
+                const result = await uploadToCloudinary(file, 'lff-accommodations');
+                fileId = result.publicId; // Store publicId for deletion
+                imageUrl = result.url;
             } catch (uploadError) {
                 console.warn("Image upload failed, using placeholder:", uploadError);
                 imageUrl = "https://placehold.co/600x400?text=No+Image";
@@ -114,25 +111,16 @@ export async function PUT(request: NextRequest) {
         if (formData.has('slots')) updates.slots = formData.get('slots');
 
         if (file) {
-            // Upload new file
-            const driveFile = await uploadFile(file);
-            // Hack for higher res thumbnail
-            updates.imageUrl = driveFile.thumbnailLink
-                ? driveFile.thumbnailLink.replace('=s220', '=s1000')
-                : driveFile.webViewLink;
-            updates.fileId = driveFile.id;
+            // Upload new file to Cloudinary
+            const result = await uploadToCloudinary(file, 'lff-accommodations');
+            updates.imageUrl = result.url;
+            updates.fileId = result.publicId;
 
-            // Should we delete the old file? 
-            // We'd need to fetch the old details first. 
-            // For now, let's rely on the user manually cleaning up or just ignore it 
-            // OR ideally we fetch the old record to get the old fileId.
-            // The `updateAccommodationListing` doesn't return the old one.
-            // Let's fetch it here if we want to be clean.
-
+            // Delete old file if exists
             const accommodations = await getAccommodations();
             const current = accommodations.find(acc => acc.id === id);
             if (current && current.fileId) {
-                await deleteFile(current.fileId); // Delete old file
+                await deleteFromCloudinary(current.fileId);
             }
         }
 
@@ -163,7 +151,7 @@ export async function DELETE(request: NextRequest) {
         const current = accommodations.find(acc => acc.id === id);
 
         if (current && current.fileId) {
-            await deleteFile(current.fileId);
+            await deleteFromCloudinary(current.fileId);
         }
 
         await deleteAccommodationListing(id);

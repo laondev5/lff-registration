@@ -1,7 +1,6 @@
-
 import { NextRequest, NextResponse } from 'next/server';
 import { updatePaymentProof } from '@/lib/googleSheets';
-import { uploadFile } from '@/lib/googleDrive';
+import { uploadToCloudinary } from '@/lib/cloudinary';
 
 export async function POST(req: NextRequest) {
     try {
@@ -13,15 +12,11 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ success: false, error: 'Missing file or unique ID' }, { status: 400 });
         }
 
-        // Upload to Google Drive
-        const googleFile = await uploadFile(file);
-        const fileLink = googleFile.webViewLink;
+        // Upload to Cloudinary
+        const result = await uploadToCloudinary(file, 'lff-payment-proofs');
+        const fileLink = result.url;
 
-        if (!fileLink) {
-            throw new Error("Failed to get file link from Google Drive");
-        }
-
-        // Update Google Sheet with the link
+        // Update Google Sheet with the Cloudinary link
         await updatePaymentProof(uniqueId, fileLink);
 
         return NextResponse.json({ success: true, fileLink });

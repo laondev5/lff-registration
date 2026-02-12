@@ -15,11 +15,11 @@ const personalInfoSchema = z.object({
   email: z.string().email("Please enter a valid email"),
   phoneNumber: z.string().min(10, "Valid phone number required"),
   whatsapp: z.string().min(10, "Valid WhatsApp number required"),
-  gender: z.enum(["male", "female"], { required_error: "Please select your gender" }),
+  gender: z.enum(["male", "female"]),
 });
 
 const churchLocationSchema = z.object({
-  isLFFMember: z.enum(["yes", "no"], { required_error: "Please select an option" }),
+  isLFFMember: z.enum(["yes", "no"]),
   churchDetails: z.string().min(2, "Church details are required"),
   areaDistrict: z.string().min(2, "Area/District is required"),
   state: z.string().min(2, "State is required"),
@@ -27,8 +27,8 @@ const churchLocationSchema = z.object({
 });
 
 const preferencesSchema = z.object({
-  attendanceType: z.enum(["physical", "virtual"], { required_error: "Please select attendance type" }),
-  busInterest: z.enum(["yes", "no"], { required_error: "Please select an option" }),
+  attendanceType: z.enum(["physical", "virtual"]),
+  busInterest: z.enum(["yes", "no"]),
   mealCollection: z.string().min(1, "Please select a meal collection point"),
   prayerRequest: z.string().optional(),
 });
