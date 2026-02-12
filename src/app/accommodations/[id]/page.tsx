@@ -3,51 +3,56 @@
 import { use, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { accommodations } from '@/lib/data';
 import { useRegistrationStore } from '@/store/useRegistrationStore';
 import { ChevronLeft, Check, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export default function AccommodationDetailPage({ params }: { params: Promise<{ id: string }> }) {
-  // Unwrap params using React.use() or await if async component, but here it's client component so params is a Promise in Next 15+?
-  // Actually in Next 15 params is a Promise. In Next 14 it was an object.
-  // The user prompt said Next.js project with "latest version". Next 15 is latest.
-  // So I should treat params as a Promise.
-  
   const resolvedParams = use(params);
   const id = resolvedParams.id;
-  const accommodation = accommodations.find(a => a.id === id);
   
   const router = useRouter();
   const { data: userData, updateData } = useRegistrationStore();
   
-  const [loading, setLoading] = useState(false);
+  const [accommodation, setAccommodation] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [bookingLoading, setBookingLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState('');
 
-  // Determine if user has a unique ID (means they registered)
-  // But wait, the unique ID is returned by the API response, NOT stored in the form data by default unless I stored it.
-  // I need to update `useRegistrationStore` to store `uniqueId`.
-  // I'll assume I'll update the store to include `uniqueId` field.
-  // For now I'll cast userData as any to access uniqueId or just check if they have a name.
-  // If no uniqueId, we can't update the sheet. 
-  // Maybe I should add `uniqueId` to the store interface.
-  
-  const uniqueId = (userData as any).uniqueId; 
+  useEffect(() => {
+    async function fetchAcc() {
+        try {
+            const res = await fetch('/api/accommodations');
+            const data = await res.json();
+            if (data.success) {
+                const found = data.accommodations.find((a: any) => a.id === id);
+                setAccommodation(found);
+            }
+        } catch (e) {
+            console.error(e);
+        } finally {
+            setLoading(false);
+        }
+    }
+    fetchAcc();
+  }, [id]);
+
+  const uniqueId = userData.uniqueId;
 
   const handleBook = async () => {
     if (!accommodation) return;
     
-    setLoading(true);
+    setBookingLoading(true);
     setError('');
 
     try {
       const payload = {
         uniqueId,
         accommodation: {
-          type: accommodation.type,
-          price: accommodation.name + " - " + accommodation.price, // Combining for sheet clarity
-          duration: "Full Event" // specific duration not captured in UI yet
+          type: "Standard", // Default for now as not in sheet
+          price: accommodation.title + " - " + accommodation.price, 
+          duration: "Full Event" 
         }
       };
 
@@ -62,20 +67,24 @@ export default function AccommodationDetailPage({ params }: { params: Promise<{ 
       if (!result.success) {
         throw new Error(result.error || "Booking failed");
       }
-
-      setSuccess(true);
+      
       // Update local store
       updateData({ 
         accommodationId: accommodation.id, 
-        accommodationType: accommodation.type 
+        accommodationType: "Standard" 
       });
+
+      // Redirect to payment upload page
+      router.push(`/upload-payment?id=${uniqueId}&accommodation=${accommodation.title}`);
 
     } catch (err: any) {
       setError(err.message);
     } finally {
-      setLoading(false);
+      setBookingLoading(false);
     }
   };
+
+  if (loading) return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin" /></div>;
 
   if (!accommodation) {
     return (
@@ -88,9 +97,6 @@ export default function AccommodationDetailPage({ params }: { params: Promise<{ 
     );
   }
 
-  // If user hasn't registered (no uniqueId), prompt them.
-  // Note: in a real app, we'd persist store to localStorage to survive refresh.
-  // If store is empty, user is lost.
   if (!uniqueId) {
       return (
           <div className="min-h-screen flex items-center justify-center text-white bg-background p-4">
@@ -105,6 +111,9 @@ export default function AccommodationDetailPage({ params }: { params: Promise<{ 
       );
   }
 
+  // Parse price for display
+  const displayPrice = parseInt(accommodation.price.replace(/[^0-9]/g, '')) || 0;
+
   return (
     <main className="min-h-screen bg-background text-foreground py-16 px-4">
       <div className="container mx-auto max-w-4xl">
@@ -114,17 +123,20 @@ export default function AccommodationDetailPage({ params }: { params: Promise<{ 
         
         <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
             {/* Image Section */}
-            <div className={cn("rounded-2xl h-[400px] w-full bg-cover bg-center shadow-2xl", accommodation.image)}></div>
+            <div 
+                className={cn("rounded-2xl h-[400px] w-full bg-cover bg-center shadow-2xl", !accommodation.imageUrl && "bg-gray-800")}
+                style={accommodation.imageUrl ? { backgroundImage: `url(${accommodation.imageUrl})` } : {}}
+            ></div>
             
             {/* Details Section */}
             <div className="flex flex-col justify-center">
                 <div className="mb-2">
                     <span className="bg-primary/20 text-primary px-3 py-1 rounded-full text-sm font-bold uppercase tracking-wider">
-                        {accommodation.type}
+                        Standard
                     </span>
                 </div>
-                <h1 className="text-4xl md:text-5xl font-bold text-white mb-4">{accommodation.name}</h1>
-                <p className="text-2xl text-primary font-bold mb-6">₦{accommodation.price.toLocaleString()}</p>
+                <h1 className="text-4xl md:text-5xl font-bold text-white mb-4">{accommodation.title}</h1>
+                <p className="text-2xl text-primary font-bold mb-6">₦{displayPrice.toLocaleString()}</p>
                 
                 <p className="text-gray-300 text-lg mb-8 leading-relaxed">
                     {accommodation.description}
@@ -133,30 +145,20 @@ export default function AccommodationDetailPage({ params }: { params: Promise<{ 
                 <div className="mb-8">
                     <h3 className="text-lg font-semibold text-white mb-4">Features</h3>
                     <ul className="grid grid-cols-2 gap-3">
-                        {accommodation.features?.map((feature, i) => (
-                            <li key={i} className="flex items-center text-gray-400">
-                                <Check className="w-4 h-4 mr-2 text-green-500" /> {feature}
-                            </li>
-                        ))}
+                         {/* Features not in DB yet, create dummy or skip */}
+                         <li className="flex items-center text-gray-400"><Check className="w-4 h-4 mr-2 text-green-500" /> Comfortable Bed</li>
+                         <li className="flex items-center text-gray-400"><Check className="w-4 h-4 mr-2 text-green-500" /> Secure Environment</li>
                     </ul>
                 </div>
 
                 <div className="mt-auto">
-                    {success ? (
-                        <div className="p-4 bg-green-500/20 border border-green-500/50 rounded-lg text-green-400 text-center">
-                            <h3 className="font-bold text-lg mb-2">Booking Confirmed!</h3>
-                            <p>Thank you, {userData.fullName}. Your accommodation has been reserved.</p>
-                            <Link href="/" className="inline-block mt-4 text-sm underline hover:text-white">Return to Home</Link>
-                        </div>
-                    ) : (
-                        <button 
-                            onClick={handleBook}
-                            disabled={loading}
-                            className="w-full py-4 bg-primary text-primary-foreground text-lg font-bold rounded-xl hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50 disabled:pointer-events-none flex items-center justify-center"
-                        >
-                            {loading ? <Loader2 className="w-6 h-6 animate-spin" /> : "Book This Room"}
-                        </button>
-                    )}
+                    <button 
+                        onClick={handleBook}
+                        disabled={bookingLoading}
+                        className="w-full py-4 bg-primary text-primary-foreground text-lg font-bold rounded-xl hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50 disabled:pointer-events-none flex items-center justify-center"
+                    >
+                        {bookingLoading ? <Loader2 className="w-6 h-6 animate-spin" /> : "Book This Room"}
+                    </button>
                     {error && <p className="mt-4 text-red-500 text-center">{error}</p>}
                 </div>
             </div>
