@@ -235,9 +235,22 @@ export function RegistrationForm() {
           </div>
 
           <div className="space-y-1.5">
+            <label className="text-sm font-medium text-gray-300">Phone Number <span className="text-red-400">*</span></label>
+            <div className="relative">
+              {/* <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-lg">📞</span> */}
+              <input
+                {...regPersonal("phoneNumber")}
+                className="form-input pl-10"
+                placeholder="080 1234 5678"
+              />
+            </div>
+            {errPersonal.phoneNumber && <p className="text-red-400 text-xs">{errPersonal.phoneNumber.message}</p>}
+          </div>
+
+          <div className="space-y-1.5">
             <label className="text-sm font-medium text-gray-300">WhatsApp Number <span className="text-red-400">*</span></label>
             <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-lg">📱</span>
+              {/* <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-lg">📱</span> */}
               <input
                 {...regPersonal("whatsapp")}
                 className="form-input pl-10"

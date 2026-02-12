@@ -2,6 +2,15 @@ import { google } from 'googleapis';
 
 const SCOPES = ['https://www.googleapis.com/auth/spreadsheets'];
 
+function safeJsonParse(jsonString: any) {
+    if (!jsonString) return [];
+    try {
+        return JSON.parse(jsonString);
+    } catch (e) {
+        return [];
+    }
+}
+
 // Helper to get authenticated client
 async function getSheetsClient() {
     const clientEmail = process.env.GOOGLE_CLIENT_EMAIL;
@@ -254,7 +263,7 @@ export async function getDepartments() {
         return rows.map((row, index) => ({
             id: row[0],
             name: row[1],
-            subDepartments: row[2] ? JSON.parse(row[2]) : [],
+            subDepartments: safeJsonParse(row[2]),
             rowIndex: index + 1
         })).filter(d => d.id !== 'ID');
     } catch (error) {
@@ -501,4 +510,226 @@ async function getSheetId(sheets: any, spreadsheetId: string, sheetName: string)
 
     const sheet = response.data.sheets.find((s: any) => s.properties.title === sheetName);
     return sheet ? sheet.properties.sheetId : 0;
+}
+
+// --- Store / E-commerce Functions ---
+
+// Products Sheet Columns:
+// A: Id, B: Name, C: Description, D: Price, E: Category, F: Images (JSON), G: Stock, H: CreatedAt
+
+export async function getProducts() {
+    const spreadsheetId = process.env.GOOGLE_SHEET_ID;
+    if (!spreadsheetId) throw new Error("Missing GOOGLE_SHEET_ID");
+    const sheets = await getSheetsClient();
+
+    try {
+        const response = await sheets.spreadsheets.values.get({
+            spreadsheetId,
+            range: 'Products!A:H',
+        });
+
+        const rows = response.data.values;
+        if (!rows) return [];
+
+        return rows.map((row, index) => ({
+            id: row[0],
+            name: row[1],
+            description: row[2],
+            price: row[3],
+            category: row[4],
+            images: safeJsonParse(row[5]),
+            stock: row[6],
+            createdAt: row[7],
+            rowIndex: index + 1
+        })).filter(p => p.id !== 'ID');
+    } catch (error) {
+        console.warn("Products sheet might not exist yet.", error);
+        return [];
+    }
+}
+
+export async function addProduct(data: any) {
+    const spreadsheetId = process.env.GOOGLE_SHEET_ID;
+    if (!spreadsheetId) throw new Error("Missing GOOGLE_SHEET_ID");
+    const sheets = await getSheetsClient();
+
+    const uniqueId = `PROD-${Date.now()}`;
+    const timestamp = new Date().toISOString();
+
+    const row = [
+        uniqueId,
+        data.name,
+        data.description,
+        data.price,
+        data.category,
+        JSON.stringify(data.images || []),
+        data.stock || '0',
+        timestamp
+    ];
+
+    await sheets.spreadsheets.values.append({
+        spreadsheetId,
+        range: 'Products!A:H',
+        valueInputOption: 'USER_ENTERED',
+        requestBody: {
+            values: [row]
+        }
+    });
+
+    return uniqueId;
+}
+
+export async function updateProduct(id: string, data: any) {
+    const spreadsheetId = process.env.GOOGLE_SHEET_ID;
+    if (!spreadsheetId) throw new Error("Missing GOOGLE_SHEET_ID");
+    const sheets = await getSheetsClient();
+
+    const products = await getProducts();
+    const target = products.find(p => p.id === id);
+    if (!target) throw new Error("Product not found");
+
+    const rowIndex = target.rowIndex;
+
+    const row = [
+        data.name || target.name,
+        data.description || target.description,
+        data.price || target.price,
+        data.category || target.category,
+        data.images ? JSON.stringify(data.images) : JSON.stringify(target.images),
+        data.stock || target.stock,
+        target.createdAt
+    ];
+
+    await sheets.spreadsheets.values.update({
+        spreadsheetId,
+        range: `Products!B${rowIndex}:H${rowIndex}`,
+        valueInputOption: 'USER_ENTERED',
+        requestBody: {
+            values: [row]
+        }
+    });
+
+    return true;
+}
+
+export async function deleteProduct(id: string) {
+    const spreadsheetId = process.env.GOOGLE_SHEET_ID;
+    if (!spreadsheetId) throw new Error("Missing GOOGLE_SHEET_ID");
+    const sheets = await getSheetsClient();
+
+    const products = await getProducts();
+    const target = products.find(p => p.id === id);
+    if (!target) throw new Error("Product not found");
+
+    const rowIndex = target.rowIndex;
+
+    await sheets.spreadsheets.batchUpdate({
+        spreadsheetId,
+        requestBody: {
+            requests: [
+                {
+                    deleteDimension: {
+                        range: {
+                            sheetId: await getSheetId(sheets, spreadsheetId, 'Products'),
+                            dimension: 'ROWS',
+                            startIndex: rowIndex - 1,
+                            endIndex: rowIndex
+                        }
+                    }
+                }
+            ]
+        }
+    });
+
+    return true;
+}
+
+// Orders Sheet Columns:
+// A: Id, B: UserId (or "GUEST"), C: Items (JSON), D: Total, E: Status, F: CreatedAt, G: Name, H: Email, I: Phone
+
+export async function getOrders() {
+    const spreadsheetId = process.env.GOOGLE_SHEET_ID;
+    if (!spreadsheetId) throw new Error("Missing GOOGLE_SHEET_ID");
+    const sheets = await getSheetsClient();
+
+    try {
+        const response = await sheets.spreadsheets.values.get({
+            spreadsheetId,
+            range: 'Orders!A:I',
+        });
+
+        const rows = response.data.values;
+        if (!rows) return [];
+
+        return rows.map((row, index) => ({
+            id: row[0],
+            userId: row[1],
+            items: safeJsonParse(row[2]),
+            total: row[3],
+            status: row[4],
+            createdAt: row[5],
+            customerName: row[6] || '',
+            customerEmail: row[7] || '',
+            customerPhone: row[8] || '',
+            rowIndex: index + 1
+        })).filter(o => o.id !== 'ID');
+    } catch (error) {
+        console.warn("Orders sheet might not exist yet.", error);
+        return [];
+    }
+}
+
+export async function createOrder(data: any) {
+    const spreadsheetId = process.env.GOOGLE_SHEET_ID;
+    if (!spreadsheetId) throw new Error("Missing GOOGLE_SHEET_ID");
+    const sheets = await getSheetsClient();
+
+    const uniqueId = `ORD-${Date.now()}`;
+    const timestamp = new Date().toISOString();
+
+    const row = [
+        uniqueId,
+        data.userId || 'GUEST',
+        JSON.stringify(data.items),
+        data.total,
+        'Pending', // Initial status
+        timestamp,
+        data.customerName || '',
+        data.customerEmail || '',
+        data.customerPhone || ''
+    ];
+
+    await sheets.spreadsheets.values.append({
+        spreadsheetId,
+        range: 'Orders!A:I',
+        valueInputOption: 'USER_ENTERED',
+        requestBody: {
+            values: [row]
+        }
+    });
+
+    return uniqueId;
+}
+
+export async function updateOrderStatus(id: string, status: string) {
+    const spreadsheetId = process.env.GOOGLE_SHEET_ID;
+    if (!spreadsheetId) throw new Error("Missing GOOGLE_SHEET_ID");
+    const sheets = await getSheetsClient();
+
+    const orders = await getOrders();
+    const target = orders.find(o => o.id === id);
+    if (!target) throw new Error("Order not found");
+
+    const rowIndex = target.rowIndex;
+
+    await sheets.spreadsheets.values.update({
+        spreadsheetId,
+        range: `Orders!E${rowIndex}`,
+        valueInputOption: 'USER_ENTERED',
+        requestBody: {
+            values: [[status]]
+        }
+    });
+
+    return true;
 }

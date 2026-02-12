@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation';
 import { isAuthenticated } from '@/lib/adminAuth';
 import Link from 'next/link';
-import { LayoutDashboard, Users, Home, LogOut } from 'lucide-react';
+import { LayoutDashboard, Users, Home, LogOut, Package, ShoppingBag } from 'lucide-react';
 import { logoutAdmin } from '@/lib/adminAuth';
 
 // We need a client component for the logout button usually, but we can do a server action or just a route handler call.
@@ -37,6 +37,17 @@ export default async function AdminDashboardLayout({
                     <Link href="/admin/accommodations" className="flex items-center space-x-3 px-4 py-3 text-gray-700 hover:bg-gray-100 rounded-md">
                         <Home size={20} />
                         <span>Accommodations</span>
+                    </Link>
+                    <div className="pt-2 pb-1 px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                        Store Management
+                    </div>
+                    <Link href="/admin/store/products" className="flex items-center space-x-3 px-4 py-3 text-gray-700 hover:bg-gray-100 rounded-md">
+                        <Package size={20} />
+                        <span>Products</span>
+                    </Link>
+                    <Link href="/admin/store/orders" className="flex items-center space-x-3 px-4 py-3 text-gray-700 hover:bg-gray-100 rounded-md">
+                        <ShoppingBag size={20} />
+                        <span>Orders</span>
                     </Link>
                 </nav>
                 <div className="p-4 border-t">
