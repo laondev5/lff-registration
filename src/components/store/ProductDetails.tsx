@@ -1,43 +1,111 @@
 "use client";
 
-import { useState } from 'react';
-import { ShoppingCart, Check, ChevronLeft } from 'lucide-react';
-import { useCartStore, Product } from '@/store/useCartStore';
+import { useState, useMemo } from 'react';
+import { ShoppingCart, Check, ChevronLeft, Minus, Plus, X, Package } from 'lucide-react';
+import { useCartStore, Product, BulkItem } from '@/store/useCartStore';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 
 export function ProductDetails({ product }: { product: Product }) {
-    const router = useRouter();
-    const addItem = useCartStore((state) => state.addItem);
+    const { addItem, addBulkItems } = useCartStore();
     const [mainImage, setMainImage] = useState(product.images[0] || null);
     const [added, setAdded] = useState(false);
+    const [selectedColor, setSelectedColor] = useState<string>('');
+    const [selectedSize, setSelectedSize] = useState<string>('');
+    const [quantity, setQuantity] = useState(1);
+
+    // Bulk order state
+    const [bulkMode, setBulkMode] = useState(false);
+    const [bulkItems, setBulkItems] = useState<BulkItem[]>([]);
+
+    const hasVariants = product.variants && product.variants.length > 0;
+    const hasColors = product.colors && product.colors.length > 0;
+    const hasSizes = product.sizes && product.sizes.length > 0;
+
+    const selectedVariant = useMemo(() => {
+        if (!hasVariants || !selectedColor || !selectedSize) return null;
+        return product.variants?.find(v => v.color === selectedColor && v.size === selectedSize) || null;
+    }, [hasVariants, selectedColor, selectedSize, product.variants]);
+
+    const getVariantStock = (color: string, size: string) => {
+        if (!product.variants) return 0;
+        const v = product.variants.find(v => v.color === color && v.size === size);
+        return v ? v.stock : 0;
+    };
+
+    const isSizeAvailable = (size: string) => {
+        if (!hasVariants) return true;
+        if (!selectedColor) {
+            return product.variants!.some(v => v.size === size && v.stock > 0);
+        }
+        return getVariantStock(selectedColor, size) > 0;
+    };
+
+    const canAddToCart = () => {
+        if (!hasVariants) return true;
+        if (!selectedColor || !selectedSize) return false;
+        return selectedVariant ? selectedVariant.stock > 0 : false;
+    };
 
     const handleAddToCart = () => {
-        addItem(product);
+        if (!canAddToCart()) return;
+        addItem(product, selectedColor || undefined, selectedSize || undefined, quantity);
         setAdded(true);
         setTimeout(() => setAdded(false), 2000);
     };
+
+    // Bulk order functions
+    const addBulkRow = () => {
+        setBulkItems(prev => [...prev, { selectedColor: '', selectedSize: '', quantity: 1 }]);
+    };
+
+    const updateBulkItem = (index: number, field: keyof BulkItem, value: string | number) => {
+        setBulkItems(prev => prev.map((item, i) =>
+            i === index ? { ...item, [field]: value } : item
+        ));
+    };
+
+    const removeBulkItem = (index: number) => {
+        setBulkItems(prev => prev.filter((_, i) => i !== index));
+    };
+
+    const bulkTotal = useMemo(() => {
+        return bulkItems.reduce((sum, item) => sum + (parseFloat(product.price) * item.quantity), 0);
+    }, [bulkItems, product.price]);
+
+    const handleBulkAddToCart = () => {
+        const validItems = bulkItems.filter(item => item.selectedColor && item.selectedSize && item.quantity > 0);
+        if (validItems.length === 0) return;
+        addBulkItems(product, validItems);
+        setAdded(true);
+        setBulkItems([]);
+        setBulkMode(false);
+        setTimeout(() => setAdded(false), 2000);
+    };
+
+    const currentStock = hasVariants
+        ? (selectedVariant ? selectedVariant.stock : null)
+        : parseInt(product.stock) || 0;
 
     return (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
             {/* Image Gallery */}
             <div className="space-y-4">
-                <div className="aspect-square bg-card border border-white/10 rounded-2xl overflow-hidden flex items-center justify-center relative">
+                <div className="aspect-square bg-card border border-white/10 rounded-2xl overflow-hidden image-zoom-container">
                     {mainImage ? (
                         <img src={mainImage} alt={product.name} className="w-full h-full object-cover" />
                     ) : (
-                        <div className="text-gray-500">No Image Available</div>
+                        <div className="w-full h-full flex items-center justify-center text-gray-500">No Image Available</div>
                     )}
                 </div>
-                
+
                 {product.images.length > 1 && (
-                    <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-hide">
+                    <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
                         {product.images.map((img, idx) => (
                             <button
                                 key={idx}
                                 onClick={() => setMainImage(img)}
-                                className={`w-20 h-20 flex-shrink-0 rounded-lg overflow-hidden border-2 transition-colors ${
-                                    mainImage === img ? 'border-primary' : 'border-transparent hover:border-white/20'
+                                className={`w-20 h-20 flex-shrink-0 rounded-lg overflow-hidden border-2 transition-all ${
+                                    mainImage === img ? 'border-primary shadow-lg shadow-primary/20' : 'border-transparent hover:border-white/20'
                                 }`}
                             >
                                 <img src={img} alt={`View ${idx}`} className="w-full h-full object-cover" />
@@ -49,37 +117,129 @@ export function ProductDetails({ product }: { product: Product }) {
 
             {/* Details */}
             <div className="flex flex-col">
-                <Link href="/store" className="text-sm text-gray-500 hover:text-white mb-6 inline-flex items-center">
+                <Link href="/store" className="text-sm text-gray-500 hover:text-white mb-6 inline-flex items-center transition-colors">
                     <ChevronLeft className="w-4 h-4 mr-1" /> Back to Store
                 </Link>
 
                 <div className="text-primary font-bold uppercase tracking-wider text-sm mb-2">{product.category}</div>
                 <h1 className="text-4xl font-bold text-white mb-4">{product.name}</h1>
-                <div className="text-3xl font-bold text-white mb-8">₦{parseInt(product.price).toLocaleString()}</div>
+                <div className="text-3xl font-bold text-white mb-6">₦{parseInt(product.price).toLocaleString()}</div>
+
+                {/* Stock status */}
+                {currentStock !== null && (
+                    <div className="mb-6">
+                        {currentStock === 0 ? (
+                            <span className="text-red-400 text-sm font-medium">Out of Stock</span>
+                        ) : currentStock <= 5 ? (
+                            <span className="text-orange-400 text-sm font-medium">Only {currentStock} left in stock</span>
+                        ) : (
+                            <span className="text-green-400 text-sm font-medium">In Stock ({currentStock} available)</span>
+                        )}
+                    </div>
+                )}
 
                 <div className="prose prose-invert max-w-none mb-8 text-gray-400">
                     <p>{product.description}</p>
                 </div>
 
-                <div className="mt-auto space-y-4">
-                    <div className="flex items-center gap-4">
+                {/* Color Selection */}
+                {hasColors && (
+                    <div className="mb-6">
+                        <label className="text-sm font-medium text-gray-300 mb-3 block">
+                            Color{selectedColor && <span className="text-primary ml-2">{selectedColor}</span>}
+                        </label>
+                        <div className="flex flex-wrap gap-3">
+                            {product.colors!.map((color, idx) => (
+                                <button
+                                    key={idx}
+                                    onClick={() => setSelectedColor(color.name)}
+                                    className={`color-swatch ${selectedColor === color.name ? 'active' : ''}`}
+                                    style={{ backgroundColor: color.hex }}
+                                    title={color.name}
+                                />
+                            ))}
+                        </div>
+                    </div>
+                )}
+
+                {/* Size Selection */}
+                {hasSizes && (
+                    <div className="mb-6">
+                        <label className="text-sm font-medium text-gray-300 mb-3 block">Size</label>
+                        <div className="flex flex-wrap gap-2">
+                            {product.sizes!.map((size) => {
+                                const available = isSizeAvailable(size);
+                                return (
+                                    <button
+                                        key={size}
+                                        onClick={() => available && setSelectedSize(size)}
+                                        className={`size-pill ${selectedSize === size ? 'active' : ''} ${!available ? 'disabled' : ''}`}
+                                    >
+                                        {size}
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    </div>
+                )}
+
+                {/* Variant stock after selection */}
+                {hasVariants && selectedColor && selectedSize && (
+                    <div className="mb-6 text-sm animate-slide-up">
+                        {selectedVariant && selectedVariant.stock > 0 ? (
+                            <span className="text-green-400">{selectedVariant.stock} available for {selectedColor} / {selectedSize}</span>
+                        ) : (
+                            <span className="text-red-400">This combination is out of stock</span>
+                        )}
+                    </div>
+                )}
+
+                {/* Quantity Selector */}
+                <div className="mb-8">
+                    <label className="text-sm font-medium text-gray-300 mb-3 block">Quantity</label>
+                    <div className="flex items-center gap-1">
                         <button
-                            onClick={handleAddToCart}
-                            className={`flex-1 btn-primary py-4 text-lg font-bold flex items-center justify-center gap-2 transition-all ${
-                                added ? 'bg-green-600 hover:bg-green-700' : ''
-                            }`}
+                            onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                            className="w-10 h-10 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-white hover:bg-white/10 transition-colors"
                         >
-                            {added ? (
-                                <>
-                                    <Check className="w-5 h-5" /> Added to Cart
-                                </>
-                            ) : (
-                                <>
-                                    <ShoppingCart className="w-5 h-5" /> Add to Cart
-                                </>
-                            )}
+                            <Minus size={16} />
+                        </button>
+                        <input
+                            type="number"
+                            min="1"
+                            value={quantity}
+                            onChange={e => setQuantity(Math.max(1, parseInt(e.target.value) || 1))}
+                            className="w-16 h-10 text-center bg-white/5 border border-white/10 rounded-lg text-white focus:outline-none focus:border-primary"
+                        />
+                        <button
+                            onClick={() => setQuantity(quantity + 1)}
+                            className="w-10 h-10 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-white hover:bg-white/10 transition-colors"
+                        >
+                            <Plus size={16} />
                         </button>
                     </div>
+                </div>
+
+                {/* Add to Cart */}
+                <div className="space-y-4">
+                    <button
+                        onClick={handleAddToCart}
+                        disabled={!canAddToCart()}
+                        className={`w-full btn-primary py-4 text-lg font-bold flex items-center justify-center gap-2 transition-all disabled:opacity-40 disabled:cursor-not-allowed ${
+                            added ? 'bg-green-600 hover:bg-green-700' : ''
+                        }`}
+                    >
+                        {added ? (
+                            <><Check className="w-5 h-5" /> Added to Cart</>
+                        ) : (
+                            <><ShoppingCart className="w-5 h-5" /> Add to Cart</>
+                        )}
+                    </button>
+
+                    {hasVariants && !selectedColor && !selectedSize && (
+                        <p className="text-xs text-gray-500 text-center">Select a color and size to add to cart</p>
+                    )}
+
                     {added && (
                         <div className="text-center">
                             <Link href="/store/cart" className="text-sm text-primary hover:underline">
@@ -88,6 +248,97 @@ export function ProductDetails({ product }: { product: Product }) {
                         </div>
                     )}
                 </div>
+
+                {/* Bulk Order Section */}
+                {hasVariants && (
+                    <div className="mt-8 pt-8 border-t border-white/10">
+                        <div className="flex items-center justify-between mb-4">
+                            <div className="flex items-center gap-2">
+                                <Package size={18} className="text-primary" />
+                                <span className="text-sm font-medium text-white">Order in Bulk</span>
+                            </div>
+                            <button
+                                onClick={() => {
+                                    setBulkMode(!bulkMode);
+                                    if (!bulkMode && bulkItems.length === 0) {
+                                        setBulkItems([{ selectedColor: '', selectedSize: '', quantity: 1 }]);
+                                    }
+                                }}
+                                className={`relative w-12 h-6 rounded-full transition-colors ${bulkMode ? 'bg-primary' : 'bg-white/10'}`}
+                            >
+                                <div className={`absolute top-0.5 w-5 h-5 bg-white rounded-full transition-transform ${bulkMode ? 'translate-x-6' : 'translate-x-0.5'}`} />
+                            </button>
+                        </div>
+
+                        {bulkMode && (
+                            <div className="space-y-3 animate-slide-up">
+                                {bulkItems.map((item, idx) => (
+                                    <div key={idx} className="bulk-order-row">
+                                        <select
+                                            value={item.selectedColor}
+                                            onChange={e => updateBulkItem(idx, 'selectedColor', e.target.value)}
+                                            className="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-primary"
+                                        >
+                                            <option value="" className="text-black">Color...</option>
+                                            {product.colors?.map(c => (
+                                                <option key={c.name} value={c.name} className="text-black">{c.name}</option>
+                                            ))}
+                                        </select>
+
+                                        <select
+                                            value={item.selectedSize}
+                                            onChange={e => updateBulkItem(idx, 'selectedSize', e.target.value)}
+                                            className="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-primary"
+                                        >
+                                            <option value="" className="text-black">Size...</option>
+                                            {product.sizes?.map(s => (
+                                                <option key={s} value={s} className="text-black">{s}</option>
+                                            ))}
+                                        </select>
+
+                                        <input
+                                            type="number"
+                                            min="1"
+                                            value={item.quantity}
+                                            onChange={e => updateBulkItem(idx, 'quantity', Math.max(1, parseInt(e.target.value) || 1))}
+                                            className="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white text-sm text-center focus:outline-none focus:border-primary"
+                                        />
+
+                                        <button
+                                            onClick={() => removeBulkItem(idx)}
+                                            className="text-gray-500 hover:text-red-400 p-1 transition-colors"
+                                        >
+                                            <X size={18} />
+                                        </button>
+                                    </div>
+                                ))}
+
+                                <button
+                                    onClick={addBulkRow}
+                                    className="w-full py-2 border border-dashed border-white/10 rounded-lg text-sm text-gray-400 hover:text-white hover:border-white/20 transition-colors flex items-center justify-center gap-2"
+                                >
+                                    <Plus size={14} /> Add Another Variant
+                                </button>
+
+                                {bulkItems.length > 0 && (
+                                    <div className="flex items-center justify-between pt-3 border-t border-white/10">
+                                        <div className="text-sm text-gray-400">
+                                            {bulkItems.filter(i => i.selectedColor && i.selectedSize).length} items,{' '}
+                                            <span className="text-white font-bold">₦{bulkTotal.toLocaleString()}</span>
+                                        </div>
+                                        <button
+                                            onClick={handleBulkAddToCart}
+                                            disabled={bulkItems.filter(i => i.selectedColor && i.selectedSize && i.quantity > 0).length === 0}
+                                            className="btn-primary px-6 py-2 text-sm disabled:opacity-40 disabled:cursor-not-allowed"
+                                        >
+                                            Add All to Cart
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                    </div>
+                )}
             </div>
         </div>
     );

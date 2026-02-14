@@ -2,15 +2,20 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Package, ChevronDown, ChevronUp, Check, X } from 'lucide-react';
+import { Package, ChevronDown, ChevronUp } from 'lucide-react';
 
 interface CartItem {
-    product: {
+    product?: {
         id: string;
         name: string;
         price: string;
     };
+    productId?: string;
+    name?: string;
+    price?: string;
     quantity: number;
+    selectedColor?: string;
+    selectedSize?: string;
 }
 
 interface Order {
@@ -23,6 +28,7 @@ interface Order {
     customerName?: string;
     customerEmail?: string;
     customerPhone?: string;
+    itemsSummary?: string;
 }
 
 export function OrderList({ initialOrders }: { initialOrders: Order[] }) {
@@ -88,14 +94,14 @@ export function OrderList({ initialOrders }: { initialOrders: Order[] }) {
                     <tbody className="bg-white divide-y divide-gray-200">
                         {orders.length === 0 ? (
                             <tr>
-                                <td colSpan={6} className="px-6 py-4 text-center text-gray-500">
+                                <td colSpan={7} className="px-6 py-4 text-center text-gray-500">
                                     No orders found.
                                 </td>
                             </tr>
                         ) : (
                             orders.map((order) => (
-                                <>
-                                    <tr key={order.id} className="hover:bg-gray-50 cursor-pointer" onClick={() => toggleExpand(order.id)}>
+                                <tbody key={order.id}>
+                                    <tr className="hover:bg-gray-50 cursor-pointer" onClick={() => toggleExpand(order.id)}>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 flex items-center gap-2">
                                             {expandedOrder === order.id ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
                                             {order.id}
@@ -134,21 +140,47 @@ export function OrderList({ initialOrders }: { initialOrders: Order[] }) {
                                     </tr>
                                     {expandedOrder === order.id && (
                                         <tr className="bg-gray-50">
-                                            <td colSpan={6} className="px-6 py-4">
+                                            <td colSpan={7} className="px-6 py-4">
                                                 <div className="text-sm text-gray-700">
                                                     <h4 className="font-bold mb-2">Order Items:</h4>
-                                                    <ul className="list-disc pl-5 space-y-1">
-                                                        {order.items.map((item, idx) => (
-                                                            <li key={idx}>
-                                                                {item.quantity}x {item.product.name} - ₦{item.product.price} (Total: ₦{parseInt(item.product.price) * item.quantity})
-                                                            </li>
-                                                        ))}
-                                                    </ul>
+                                                    <div className="space-y-2">
+                                                        {order.items.map((item, idx) => {
+                                                            const itemName = item.product?.name || item.name || 'Unknown';
+                                                            const itemPrice = item.product?.price || item.price || '0';
+                                                            return (
+                                                                <div key={idx} className="flex items-center gap-3 bg-white p-3 rounded-lg border border-gray-200">
+                                                                    <div className="flex-1">
+                                                                        <span className="font-medium">{item.quantity}x {itemName}</span>
+                                                                        {(item.selectedColor || item.selectedSize) && (
+                                                                            <div className="flex items-center gap-2 mt-1">
+                                                                                {item.selectedColor && (
+                                                                                    <span className="inline-flex items-center gap-1 text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full font-medium">
+                                                                                        Color: {item.selectedColor}
+                                                                                    </span>
+                                                                                )}
+                                                                                {item.selectedSize && (
+                                                                                    <span className="inline-flex items-center gap-1 text-xs bg-purple-50 text-purple-700 px-2 py-0.5 rounded-full font-medium">
+                                                                                        Size: {item.selectedSize}
+                                                                                    </span>
+                                                                                )}
+                                                                            </div>
+                                                                        )}
+                                                                    </div>
+                                                                    <span className="text-gray-500">
+                                                                        ₦{parseInt(itemPrice).toLocaleString()} each
+                                                                    </span>
+                                                                    <span className="font-bold">
+                                                                        ₦{(parseInt(itemPrice) * item.quantity).toLocaleString()}
+                                                                    </span>
+                                                                </div>
+                                                            );
+                                                        })}
+                                                    </div>
                                                 </div>
                                             </td>
                                         </tr>
                                     )}
-                                </>
+                                </tbody>
                             ))
                         )}
                     </tbody>

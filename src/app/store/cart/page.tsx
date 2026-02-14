@@ -32,32 +32,47 @@ export default function CartPage() {
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                     {/* Cart Items */}
                     <div className="lg:col-span-2 space-y-4">
-                        {items.map((item) => (
-                            <div key={item.product.id} className="bg-card border border-white/10 rounded-xl p-4 flex gap-4 items-center">
+                        {items.map((item, idx) => (
+                            <div key={`${item.product.id}_${item.selectedColor}_${item.selectedSize}_${idx}`} className="bg-card border border-white/10 rounded-xl p-4 flex gap-4 items-center">
                                 <div className="w-20 h-20 bg-gray-100 rounded-lg overflow-hidden flex-shrink-0">
                                     {item.product.images[0] && (
                                         <img src={item.product.images[0]} alt={item.product.name} className="w-full h-full object-cover" />
                                     )}
                                 </div>
-                                
-                                <div className="flex-1">
+
+                                <div className="flex-1 min-w-0">
                                     <h3 className="font-bold text-white truncate">{item.product.name}</h3>
                                     <div className="text-primary font-semibold">₦{parseInt(item.product.price).toLocaleString()}</div>
+                                    {/* Variant info */}
+                                    {(item.selectedColor || item.selectedSize) && (
+                                        <div className="flex items-center gap-2 mt-1">
+                                            {item.selectedColor && (
+                                                <span className="text-xs bg-white/10 text-gray-300 px-2 py-0.5 rounded">
+                                                    {item.selectedColor}
+                                                </span>
+                                            )}
+                                            {item.selectedSize && (
+                                                <span className="text-xs bg-white/10 text-gray-300 px-2 py-0.5 rounded">
+                                                    {item.selectedSize}
+                                                </span>
+                                            )}
+                                        </div>
+                                    )}
                                 </div>
 
                                 <div className="flex items-center gap-3">
                                     <select
                                         value={item.quantity}
-                                        onChange={(e) => updateQuantity(item.product.id, parseInt(e.target.value))}
+                                        onChange={(e) => updateQuantity(item.product.id, parseInt(e.target.value), item.selectedColor, item.selectedSize)}
                                         className="bg-white/5 border border-white/10 rounded px-2 py-1 text-white focus:outline-none focus:border-primary"
                                     >
                                         {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(num => (
                                             <option key={num} value={num} className="text-black">{num}</option>
                                         ))}
                                     </select>
-                                    
+
                                     <button
-                                        onClick={() => removeItem(item.product.id)}
+                                        onClick={() => removeItem(item.product.id, item.selectedColor, item.selectedSize)}
                                         className="text-gray-500 hover:text-red-500 transition-colors p-2"
                                         title="Remove"
                                     >
@@ -72,10 +87,10 @@ export default function CartPage() {
                     <div className="lg:col-span-1">
                         <div className="bg-card border border-white/10 rounded-xl p-6 sticky top-24">
                             <h2 className="text-xl font-bold text-white mb-4">Order Summary</h2>
-                            
+
                             <div className="space-y-3 mb-6">
                                 <div className="flex justify-between text-gray-400">
-                                    <span>Subtotal</span>
+                                    <span>Subtotal ({items.reduce((s, i) => s + i.quantity, 0)} items)</span>
                                     <span>₦{getTotal().toLocaleString()}</span>
                                 </div>
                                 <div className="flex justify-between text-gray-400">
@@ -91,7 +106,7 @@ export default function CartPage() {
                             <Link href="/store/checkout" className="w-full btn-primary py-3 flex items-center justify-center font-bold">
                                 Checkout <ChevronRight className="w-4 h-4 ml-2" />
                             </Link>
-                            
+
                             <div className="mt-4 text-center">
                                 <Link href="/store" className="text-sm text-gray-500 hover:text-white">
                                     Continue Shopping

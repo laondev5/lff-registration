@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { updateOrderStatus } from '@/lib/googleSheets';
+import { updateOrderStatus } from '@/lib/storeService';
 
 export async function PATCH(
     request: Request,

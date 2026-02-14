@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { updateProduct, deleteProduct } from '@/lib/googleSheets';
+import { updateProduct, deleteProduct } from '@/lib/storeService';
 
 export async function PUT(
     request: Request,

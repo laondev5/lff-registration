@@ -99,6 +99,7 @@ export async function appendRegistration(data: any) {
         spreadsheetId,
         range: 'Sheet1!A:X',
         valueInputOption: 'USER_ENTERED',
+        insertDataOption: 'INSERT_ROWS',
         requestBody: {
             values: [row]
         }
@@ -515,7 +516,8 @@ async function getSheetId(sheets: any, spreadsheetId: string, sheetName: string)
 // --- Store / E-commerce Functions ---
 
 // Products Sheet Columns:
-// A: Id, B: Name, C: Description, D: Price, E: Category, F: Images (JSON), G: Stock, H: CreatedAt
+// A: Id, B: Name, C: Description, D: Price, E: Category, F: Images (JSON), G: Stock, H: CreatedAt,
+// I: Variants (JSON), J: Colors (JSON), K: Sizes (JSON)
 
 export async function getProducts() {
     const spreadsheetId = process.env.GOOGLE_SHEET_ID;
@@ -525,7 +527,7 @@ export async function getProducts() {
     try {
         const response = await sheets.spreadsheets.values.get({
             spreadsheetId,
-            range: 'Products!A:H',
+            range: 'Products!A:K',
         });
 
         const rows = response.data.values;
@@ -540,6 +542,9 @@ export async function getProducts() {
             images: safeJsonParse(row[5]),
             stock: row[6],
             createdAt: row[7],
+            variants: safeJsonParse(row[8]),
+            colors: safeJsonParse(row[9]),
+            sizes: safeJsonParse(row[10]),
             rowIndex: index + 1
         })).filter(p => p.id !== 'ID');
     } catch (error) {
@@ -564,12 +569,15 @@ export async function addProduct(data: any) {
         data.category,
         JSON.stringify(data.images || []),
         data.stock || '0',
-        timestamp
+        timestamp,
+        JSON.stringify(data.variants || []),
+        JSON.stringify(data.colors || []),
+        JSON.stringify(data.sizes || [])
     ];
 
     await sheets.spreadsheets.values.append({
         spreadsheetId,
-        range: 'Products!A:H',
+        range: 'Products!A:K',
         valueInputOption: 'USER_ENTERED',
         requestBody: {
             values: [row]
@@ -597,12 +605,15 @@ export async function updateProduct(id: string, data: any) {
         data.category || target.category,
         data.images ? JSON.stringify(data.images) : JSON.stringify(target.images),
         data.stock || target.stock,
-        target.createdAt
+        target.createdAt,
+        data.variants !== undefined ? JSON.stringify(data.variants) : JSON.stringify(target.variants || []),
+        data.colors !== undefined ? JSON.stringify(data.colors) : JSON.stringify(target.colors || []),
+        data.sizes !== undefined ? JSON.stringify(data.sizes) : JSON.stringify(target.sizes || [])
     ];
 
     await sheets.spreadsheets.values.update({
         spreadsheetId,
-        range: `Products!B${rowIndex}:H${rowIndex}`,
+        range: `Products!B${rowIndex}:K${rowIndex}`,
         valueInputOption: 'USER_ENTERED',
         requestBody: {
             values: [row]
@@ -645,7 +656,8 @@ export async function deleteProduct(id: string) {
 }
 
 // Orders Sheet Columns:
-// A: Id, B: UserId (or "GUEST"), C: Items (JSON), D: Total, E: Status, F: CreatedAt, G: Name, H: Email, I: Phone
+// A: Id, B: UserId (or "GUEST"), C: Items (JSON - compact with variants), D: Total, E: Status,
+// F: CreatedAt, G: Name, H: Email, I: Phone, J: Items Summary (human-readable with variants)
 
 export async function getOrders() {
     const spreadsheetId = process.env.GOOGLE_SHEET_ID;
@@ -655,7 +667,7 @@ export async function getOrders() {
     try {
         const response = await sheets.spreadsheets.values.get({
             spreadsheetId,
-            range: 'Orders!A:I',
+            range: 'Orders!A:J',
         });
 
         const rows = response.data.values;
@@ -671,12 +683,36 @@ export async function getOrders() {
             customerName: row[6] || '',
             customerEmail: row[7] || '',
             customerPhone: row[8] || '',
+            itemsSummary: row[9] || '',
             rowIndex: index + 1
         })).filter(o => o.id !== 'ID');
     } catch (error) {
         console.warn("Orders sheet might not exist yet.", error);
         return [];
     }
+}
+
+function formatItemsSummary(items: any[]): string {
+    return items.map((item: any) => {
+        const name = item.product?.name || item.name || 'Unknown';
+        const qty = item.quantity || 1;
+        const color = item.selectedColor || '';
+        const size = item.selectedSize || '';
+        const variant = [color, size].filter(Boolean).join(' / ');
+        const variantStr = variant ? ` (${variant})` : '';
+        return `${qty}x ${name}${variantStr}`;
+    }).join('\n');
+}
+
+function compactOrderItems(items: any[]): any[] {
+    return items.map((item: any) => ({
+        productId: item.product?.id || item.productId || '',
+        name: item.product?.name || item.name || '',
+        price: item.product?.price || item.price || '',
+        quantity: item.quantity || 1,
+        selectedColor: item.selectedColor || '',
+        selectedSize: item.selectedSize || '',
+    }));
 }
 
 export async function createOrder(data: any) {
@@ -687,22 +723,27 @@ export async function createOrder(data: any) {
     const uniqueId = `ORD-${Date.now()}`;
     const timestamp = new Date().toISOString();
 
+    const compactItems = compactOrderItems(data.items);
+    const itemsSummary = formatItemsSummary(data.items);
+
     const row = [
         uniqueId,
         data.userId || 'GUEST',
-        JSON.stringify(data.items),
+        JSON.stringify(compactItems),
         data.total,
-        'Pending', // Initial status
+        'Pending',
         timestamp,
         data.customerName || '',
         data.customerEmail || '',
-        data.customerPhone || ''
+        data.customerPhone || '',
+        itemsSummary
     ];
 
     await sheets.spreadsheets.values.append({
         spreadsheetId,
-        range: 'Orders!A:I',
+        range: 'Orders!A:J',
         valueInputOption: 'USER_ENTERED',
+        insertDataOption: 'INSERT_ROWS',
         requestBody: {
             values: [row]
         }

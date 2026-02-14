@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useRegistrationStore } from '@/store/useRegistrationStore';
 import { useCartStore } from '@/store/useCartStore';
-import { Loader2, CheckCircle, User, Mail, Phone, MessageCircle } from 'lucide-react';
+import { Loader2, CheckCircle, User, Mail, Phone } from 'lucide-react';
 import Link from 'next/link';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
@@ -22,7 +22,7 @@ export default function CheckoutPage() {
     const router = useRouter();
     const { data } = useRegistrationStore();
     const { items, getTotal, clearCart } = useCartStore();
-    
+
     const [mounted, setMounted] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [orderSuccess, setOrderSuccess] = useState(false);
@@ -34,7 +34,6 @@ export default function CheckoutPage() {
 
     useEffect(() => {
         setMounted(true);
-        // Pre-fill if registered
         if (data.uniqueId) {
             setValue('fullName', data.fullName || '');
             setValue('email', data.email || '');
@@ -108,13 +107,13 @@ export default function CheckoutPage() {
     return (
         <div className="min-h-screen bg-background py-12 px-4">
             <div className="container mx-auto max-w-4xl grid grid-cols-1 md:grid-cols-2 gap-8">
-                
+
                 {/* Order Summary */}
                 <div className="bg-card border border-white/10 rounded-2xl p-6 h-fit">
                     <h2 className="text-xl font-bold text-white mb-6">Order Summary</h2>
                     <div className="space-y-4 mb-6 max-h-96 overflow-y-auto pr-2 custom-scrollbar">
-                        {items.map((item) => (
-                            <div key={item.product.id} className="flex gap-4 items-center bg-white/5 p-3 rounded-lg">
+                        {items.map((item, idx) => (
+                            <div key={`${item.product.id}_${item.selectedColor}_${item.selectedSize}_${idx}`} className="flex gap-4 items-center bg-white/5 p-3 rounded-lg">
                                 <div className="w-16 h-16 bg-gray-100 rounded-md overflow-hidden flex-shrink-0">
                                     {item.product.images[0] && (
                                         <img src={item.product.images[0]} alt="" className="w-full h-full object-cover" />
@@ -123,6 +122,16 @@ export default function CheckoutPage() {
                                 <div className="flex-1 min-w-0">
                                     <p className="text-sm font-medium text-white truncate">{item.product.name}</p>
                                     <p className="text-xs text-gray-400">Qty: {item.quantity}</p>
+                                    {(item.selectedColor || item.selectedSize) && (
+                                        <div className="flex items-center gap-1.5 mt-1">
+                                            {item.selectedColor && (
+                                                <span className="text-xs bg-white/10 text-gray-300 px-1.5 py-0.5 rounded">{item.selectedColor}</span>
+                                            )}
+                                            {item.selectedSize && (
+                                                <span className="text-xs bg-white/10 text-gray-300 px-1.5 py-0.5 rounded">{item.selectedSize}</span>
+                                            )}
+                                        </div>
+                                    )}
                                 </div>
                                 <p className="text-sm font-bold text-primary">
                                     ₦{(parseInt(item.product.price) * item.quantity).toLocaleString()}
@@ -139,7 +148,7 @@ export default function CheckoutPage() {
                 {/* Customer Details Form */}
                 <div className="bg-card border border-white/10 rounded-2xl p-8 h-fit">
                     <h1 className="text-2xl font-bold text-white mb-6">Customer Details</h1>
-                    
+
                     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
                         <div className="space-y-1">
                             <label className="text-sm font-medium text-gray-300">Full Name</label>

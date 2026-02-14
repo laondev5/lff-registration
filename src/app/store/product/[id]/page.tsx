@@ -1,4 +1,4 @@
-import { getProducts } from '@/lib/googleSheets';
+import { getProduct } from '@/lib/storeService';
 import { ProductDetails } from '@/components/store/ProductDetails';
 import { notFound } from 'next/navigation';
 
@@ -6,8 +6,7 @@ export const dynamic = 'force-dynamic';
 
 export default async function ProductPage({ params }: { params: Promise<{ id: string }> }) {
     const { id } = await params;
-    const products = await getProducts();
-    const product = products.find(p => p.id === id);
+    const product = await getProduct(id);
 
     if (!product) {
         notFound();

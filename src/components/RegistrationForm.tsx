@@ -115,7 +115,26 @@ export function RegistrationForm() {
     updateData(formData);
     setIsSubmitting(true);
 
-    const finalData = { ...data, ...formData };
+    const mergedData = { ...data, ...formData };
+
+    // Only send the fields expected by the registration API
+    const finalData = {
+      fullName: mergedData.fullName,
+      email: mergedData.email,
+      phoneNumber: mergedData.phoneNumber,
+      whatsapp: mergedData.whatsapp,
+      gender: mergedData.gender,
+      isLFFMember: mergedData.isLFFMember,
+      churchDetails: mergedData.churchDetails,
+      areaDistrict: mergedData.areaDistrict,
+      state: mergedData.state,
+      country: mergedData.country,
+      attendanceType: mergedData.attendanceType,
+      busInterest: mergedData.busInterest,
+      mealCollection: mergedData.mealCollection,
+      prayerRequest: mergedData.prayerRequest,
+      needsAccommodation: mergedData.needsAccommodation,
+    };
 
     try {
       const response = await fetch('/api/register', {

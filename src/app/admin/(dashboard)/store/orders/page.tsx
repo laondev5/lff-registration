@@ -1,4 +1,4 @@
-import { getOrders } from '@/lib/googleSheets';
+import { getOrders } from '@/lib/storeService';
 import { OrderList } from '@/components/admin/OrderList';
 
 export const dynamic = 'force-dynamic';

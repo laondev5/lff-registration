@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getOrders, createOrder, updateOrderStatus } from '@/lib/googleSheets';
+import { getOrders, createOrder } from '@/lib/storeService';
 
 export async function GET() {
     try {
@@ -14,7 +14,7 @@ export async function POST(request: Request) {
     try {
         const body = await request.json();
 
-        // Validation: Require items and total. 
+        // Validation: Require items and total.
         // User details are now flexible (either userId OR customer details)
         if (!body.items || !body.total) {
             return NextResponse.json({ success: false, error: "Missing required items or total" }, { status: 400 });
