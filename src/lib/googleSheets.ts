@@ -11,6 +11,7 @@ function safeJsonParse(jsonString: any) {
     }
 }
 
+
 // Helper to get authenticated client
 async function getSheetsClient() {
     const clientEmail = process.env.GOOGLE_CLIENT_EMAIL;
@@ -766,6 +767,245 @@ export async function updateOrderStatus(id: string, status: string) {
     await sheets.spreadsheets.values.update({
         spreadsheetId,
         range: `Orders!E${rowIndex}`,
+        valueInputOption: 'USER_ENTERED',
+        requestBody: {
+            values: [[status]]
+        }
+    });
+
+    return true;
+}
+
+// --- Payment Accounts Functions ---
+// PaymentAccounts Sheet Columns:
+// A: Id, B: AccountName, C: AccountNumber, D: BankName, E: Type (store|accommodation), F: CreatedAt
+
+export async function getPaymentAccounts() {
+    const spreadsheetId = process.env.GOOGLE_SHEET_ID;
+    if (!spreadsheetId) throw new Error("Missing GOOGLE_SHEET_ID");
+    const sheets = await getSheetsClient();
+
+    try {
+        const response = await sheets.spreadsheets.values.get({
+            spreadsheetId,
+            range: 'PaymentAccounts!A:F',
+        });
+
+        const rows = response.data.values;
+        if (!rows) return [];
+
+        return rows.map((row, index) => ({
+            id: row[0],
+            accountName: row[1],
+            accountNumber: row[2],
+            bankName: row[3],
+            type: row[4],
+            createdAt: row[5],
+            rowIndex: index + 1
+        })).filter(a => a.id !== 'ID');
+    } catch (error) {
+        console.warn("PaymentAccounts sheet might not exist yet.", error);
+        return [];
+    }
+}
+
+export async function addPaymentAccount(data: any) {
+    const spreadsheetId = process.env.GOOGLE_SHEET_ID;
+    if (!spreadsheetId) throw new Error("Missing GOOGLE_SHEET_ID");
+    const sheets = await getSheetsClient();
+
+    const uniqueId = `PA-${Date.now()}`;
+    const timestamp = new Date().toISOString();
+
+    const row = [
+        uniqueId,
+        data.accountName,
+        data.accountNumber,
+        data.bankName,
+        data.type, // 'store' or 'accommodation'
+        timestamp
+    ];
+
+    await sheets.spreadsheets.values.append({
+        spreadsheetId,
+        range: 'PaymentAccounts!A:F',
+        valueInputOption: 'USER_ENTERED',
+        insertDataOption: 'INSERT_ROWS',
+        requestBody: {
+            values: [row]
+        }
+    });
+
+    return uniqueId;
+}
+
+export async function updatePaymentAccount(id: string, data: any) {
+    const spreadsheetId = process.env.GOOGLE_SHEET_ID;
+    if (!spreadsheetId) throw new Error("Missing GOOGLE_SHEET_ID");
+    const sheets = await getSheetsClient();
+
+    const accounts = await getPaymentAccounts();
+    const target = accounts.find(a => a.id === id);
+    if (!target) throw new Error("Payment account not found");
+
+    const rowIndex = target.rowIndex;
+
+    const row = [
+        data.accountName || target.accountName,
+        data.accountNumber || target.accountNumber,
+        data.bankName || target.bankName,
+        data.type || target.type,
+        target.createdAt
+    ];
+
+    await sheets.spreadsheets.values.update({
+        spreadsheetId,
+        range: `PaymentAccounts!B${rowIndex}:F${rowIndex}`,
+        valueInputOption: 'USER_ENTERED',
+        requestBody: {
+            values: [row]
+        }
+    });
+
+    return true;
+}
+
+export async function deletePaymentAccount(id: string) {
+    const spreadsheetId = process.env.GOOGLE_SHEET_ID;
+    if (!spreadsheetId) throw new Error("Missing GOOGLE_SHEET_ID");
+    const sheets = await getSheetsClient();
+
+    const accounts = await getPaymentAccounts();
+    const target = accounts.find(a => a.id === id);
+    if (!target) throw new Error("Payment account not found");
+
+    const rowIndex = target.rowIndex;
+
+    await sheets.spreadsheets.batchUpdate({
+        spreadsheetId,
+        requestBody: {
+            requests: [
+                {
+                    deleteDimension: {
+                        range: {
+                            sheetId: await getSheetId(sheets, spreadsheetId, 'PaymentAccounts'),
+                            dimension: 'ROWS',
+                            startIndex: rowIndex - 1,
+                            endIndex: rowIndex
+                        }
+                    }
+                }
+            ]
+        }
+    });
+
+    return true;
+}
+
+export async function getPaymentAccountByType(type: 'store' | 'accommodation') {
+    const accounts = await getPaymentAccounts();
+    return accounts.find(a => a.type === type) || null;
+}
+
+// --- User Lookup ---
+
+export async function findUserByEmailOrPhone(emailOrPhone: string) {
+    const users = await getUsers();
+    const normalized = emailOrPhone.trim().toLowerCase();
+    return users.find(u =>
+        (u.email && u.email.toLowerCase() === normalized) ||
+        (u.phoneNumber && u.phoneNumber === emailOrPhone.trim())
+    ) || null;
+}
+
+// --- Booking Requests ---
+// BookingRequests Sheet Columns:
+// A: Id, B: Name, C: Email, D: Phone, E: AccommodationType, F: AccommodationId,
+// G: Amount, H: PaymentProof, I: Status, J: CreatedAt, K: UniqueId (if registered user)
+
+export async function getBookingRequests() {
+    const spreadsheetId = process.env.GOOGLE_SHEET_ID;
+    if (!spreadsheetId) throw new Error("Missing GOOGLE_SHEET_ID");
+    const sheets = await getSheetsClient();
+
+    try {
+        const response = await sheets.spreadsheets.values.get({
+            spreadsheetId,
+            range: 'BookingRequests!A:K',
+        });
+
+        const rows = response.data.values;
+        if (!rows) return [];
+
+        return rows.map((row, index) => ({
+            id: row[0],
+            name: row[1],
+            email: row[2],
+            phone: row[3],
+            accommodationType: row[4],
+            accommodationId: row[5],
+            amount: row[6],
+            paymentProof: row[7],
+            status: row[8],
+            createdAt: row[9],
+            uniqueId: row[10] || '',
+            rowIndex: index + 1
+        })).filter(b => b.id !== 'ID');
+    } catch (error) {
+        console.warn("BookingRequests sheet might not exist yet.", error);
+        return [];
+    }
+}
+
+export async function createBookingRequest(data: any) {
+    const spreadsheetId = process.env.GOOGLE_SHEET_ID;
+    if (!spreadsheetId) throw new Error("Missing GOOGLE_SHEET_ID");
+    const sheets = await getSheetsClient();
+
+    const bookingId = `BK-${Date.now()}`;
+    const timestamp = new Date().toISOString();
+
+    const row = [
+        bookingId,
+        data.name,
+        data.email,
+        data.phone,
+        data.accommodationType,
+        data.accommodationId,
+        data.amount,
+        data.paymentProof || '',
+        'Pending',
+        timestamp,
+        data.uniqueId || ''
+    ];
+
+    await sheets.spreadsheets.values.append({
+        spreadsheetId,
+        range: 'BookingRequests!A:K',
+        valueInputOption: 'USER_ENTERED',
+        insertDataOption: 'INSERT_ROWS',
+        requestBody: {
+            values: [row]
+        }
+    });
+
+    return bookingId;
+}
+
+export async function updateBookingRequestStatus(id: string, status: string) {
+    const spreadsheetId = process.env.GOOGLE_SHEET_ID;
+    if (!spreadsheetId) throw new Error("Missing GOOGLE_SHEET_ID");
+    const sheets = await getSheetsClient();
+
+    const bookings = await getBookingRequests();
+    const target = bookings.find(b => b.id === id);
+    if (!target) throw new Error("Booking request not found");
+
+    const rowIndex = target.rowIndex;
+
+    await sheets.spreadsheets.values.update({
+        spreadsheetId,
+        range: `BookingRequests!I${rowIndex}`,
         valueInputOption: 'USER_ENTERED',
         requestBody: {
             values: [[status]]

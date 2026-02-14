@@ -149,6 +149,7 @@ export async function getOrders() {
         customerName: o.customerName,
         customerEmail: o.customerEmail,
         customerPhone: o.customerPhone,
+        paymentProof: o.paymentProof || '',
         createdAt: o.createdAt?.toISOString?.() || o.createdAt,
     }));
 }
@@ -176,6 +177,7 @@ export async function createOrder(data: any) {
         customerName: data.customerName || '',
         customerEmail: data.customerEmail || '',
         customerPhone: data.customerPhone || '',
+        paymentProof: data.paymentProof || '',
     });
 
     // Sync to Google Sheets
