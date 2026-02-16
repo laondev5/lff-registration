@@ -7,6 +7,7 @@ export async function POST(req: NextRequest) {
         const formData = await req.formData();
         const file = formData.get('file') as File;
         const uniqueId = formData.get('uniqueId') as string;
+        const type = (formData.get('type') as string) || 'accommodation';
 
         if (!file || !uniqueId) {
             return NextResponse.json({ success: false, error: 'Missing file or unique ID' }, { status: 400 });
@@ -17,7 +18,7 @@ export async function POST(req: NextRequest) {
         const fileLink = result.url;
 
         // Update Google Sheet with the Cloudinary link
-        await updatePaymentProof(uniqueId, fileLink);
+        await updatePaymentProof(uniqueId, fileLink, type as 'registration' | 'accommodation');
 
         return NextResponse.json({ success: true, fileLink });
     } catch (error: any) {

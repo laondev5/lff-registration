@@ -35,6 +35,7 @@ function UploadPaymentContent() {
         const formData = new FormData();
         formData.append('file', file);
         formData.append('uniqueId', uniqueId);
+        formData.append('type', 'accommodation');
 
         try {
             const response = await fetch('/api/upload-payment', {

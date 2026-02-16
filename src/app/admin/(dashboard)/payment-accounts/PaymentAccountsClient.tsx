@@ -12,6 +12,7 @@ import {
   Home,
   Loader2,
   X,
+  UserCheck,
 } from "lucide-react";
 
 interface PaymentAccount {
@@ -133,6 +134,7 @@ export default function PaymentAccountsClient({
     }
   };
 
+  const registrationAccounts = accounts.filter((a) => a.type === "registration");
   const storeAccounts = accounts.filter((a) => a.type === "store");
   const accommodationAccounts = accounts.filter(
     (a) => a.type === "accommodation",
@@ -240,6 +242,7 @@ export default function PaymentAccountsClient({
                   }
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
+                  <option value="registration">Registration Payments</option>
                   <option value="store">Store Payments</option>
                   <option value="accommodation">Accommodation Payments</option>
                 </select>
@@ -271,6 +274,62 @@ export default function PaymentAccountsClient({
           </div>
         </div>
       )}
+
+      {/* Registration Accounts */}
+      <div>
+        <h3 className="text-lg font-semibold text-gray-700 flex items-center gap-2 mb-3">
+          <UserCheck size={18} className="text-purple-600" /> Registration Payment
+          Accounts
+        </h3>
+        {registrationAccounts.length === 0 ? (
+          <div className="bg-white rounded-lg shadow p-6 text-center text-gray-500">
+            No registration payment account configured. Add one to receive
+            registration payments.
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {registrationAccounts.map((account) => (
+              <div
+                key={account.id}
+                className="bg-white rounded-lg shadow p-5 flex items-center justify-between"
+              >
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center">
+                    <Building2 className="w-6 h-6 text-purple-600" />
+                  </div>
+                  <div>
+                    <p className="font-bold text-gray-800">
+                      {account.accountName}
+                    </p>
+                    <p className="text-sm text-gray-600">
+                      {account.bankName} — {account.accountNumber}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => openEdit(account)}
+                    className="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                  >
+                    <Edit2 size={16} />
+                  </button>
+                  <button
+                    onClick={() => handleDelete(account.id)}
+                    disabled={deletingId === account.id}
+                    className="p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
+                  >
+                    {deletingId === account.id ? (
+                      <Loader2 size={16} className="animate-spin" />
+                    ) : (
+                      <Trash2 size={16} />
+                    )}
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
 
       {/* Store Accounts */}
       <div>

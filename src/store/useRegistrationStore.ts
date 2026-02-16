@@ -3,6 +3,7 @@ import { persist } from 'zustand/middleware';
 
 export interface RegistrationData {
     // Personal Info
+    title: string;
     fullName: string;
     email: string;
     phoneNumber: string;
@@ -21,6 +22,10 @@ export interface RegistrationData {
     busInterest: 'yes' | 'no' | '';
     mealCollection: string;
     prayerRequest: string;
+
+    // Registration Type
+    registrationType: string;
+    registrationAmount: string;
 
     // Accommodation
     needsAccommodation: boolean;
@@ -44,6 +49,7 @@ interface RegistrationStore {
 }
 
 const initialData: RegistrationData = {
+    title: '',
     fullName: '',
     email: '',
     phoneNumber: '',
@@ -58,6 +64,8 @@ const initialData: RegistrationData = {
     busInterest: '',
     mealCollection: '',
     prayerRequest: '',
+    registrationType: '',
+    registrationAmount: '',
     needsAccommodation: false,
 };
 
@@ -65,7 +73,7 @@ export const useRegistrationStore = create<RegistrationStore>()(
     persist(
         (set) => ({
             currentStep: 0,
-            totalSteps: 5, // 0: Personal, 1: Church/Location, 2: Preferences, 3: Submitting/Success, 4: Accommodation Question
+            totalSteps: 6, // 0: Personal, 1: Church/Location, 2: Preferences, 3: Registration Type, 4: Success/Payment, 5: Accommodation Question
             data: { ...initialData },
             setStep: (step) => set({ currentStep: step }),
             nextStep: () => set((state) => ({ currentStep: Math.min(state.currentStep + 1, state.totalSteps - 1) })),

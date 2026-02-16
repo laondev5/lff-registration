@@ -45,32 +45,37 @@ export async function appendRegistration(data: any) {
 
     // Columns:
     // A: UniqueId
-    // B: Full Name
-    // C: Email
-    // D: Phone Number
-    // E: WhatsApp
-    // F: Gender
-    // G: LFF Member
-    // H: Church Details
-    // I: Area/District
-    // J: State
-    // K: Country
-    // L: Attendance Type
-    // M: Bus Interest
-    // N: Meal Collection
-    // O: Prayer Request
-    // P: Accommodation Required
-    // Q: Accommodation Type
-    // R: Price
-    // S: Duration
-    // T: Payment Proof Link
-    // U: Department Status
-    // V: Department
-    // W: SubDepartment
-    // X: Timestamp
+    // B: Title
+    // C: Full Name
+    // D: Email
+    // E: Phone Number
+    // F: WhatsApp
+    // G: Gender
+    // H: LFF Member
+    // I: Church Details
+    // J: Area/District
+    // K: State
+    // L: Country
+    // M: Attendance Type
+    // N: Bus Interest
+    // O: Meal Collection
+    // P: Prayer Request
+    // Q: Registration Type
+    // R: Registration Amount
+    // S: Registration Payment Proof
+    // T: Accommodation Required
+    // U: Accommodation Type
+    // V: Accommodation Price
+    // W: Duration
+    // X: Accommodation Payment Proof
+    // Y: Department Status
+    // Z: Department
+    // AA: SubDepartment
+    // AB: Timestamp
 
     const row = [
         uniqueId,
+        data.title || '',
         data.fullName || '',
         data.email || '',
         data.phoneNumber || '',
@@ -85,11 +90,14 @@ export async function appendRegistration(data: any) {
         data.busInterest || '',
         data.mealCollection || '',
         data.prayerRequest || '',
+        data.registrationType || '',
+        data.registrationAmount || '',
+        '',   // Registration Payment Proof
         data.needsAccommodation ? 'Yes' : 'No',
         '',   // Accommodation Type (updated later if they book)
-        '',   // Price
+        '',   // Accommodation Price
         '',   // Duration
-        '',   // Payment Proof Link
+        '',   // Accommodation Payment Proof
         '',   // Department Status (New / Member / Just Member)
         '',   // Department
         '',   // SubDepartment
@@ -98,7 +106,7 @@ export async function appendRegistration(data: any) {
 
     await sheets.spreadsheets.values.append({
         spreadsheetId,
-        range: 'Sheet1!A:X',
+        range: 'Sheet1!A:AB',
         valueInputOption: 'USER_ENTERED',
         insertDataOption: 'INSERT_ROWS',
         requestBody: {
@@ -134,9 +142,7 @@ export async function updateAccommodation(uniqueId: string, accommodationData: a
 
     const actualRow = rowIndex + 1;
 
-    // Update Columns Q(17), R(18), S(19) (Accommodation info)
-    // Remember columns are 1-based in range strings but 0-based in array index
-    // A=1 ... P=16, Q=17, R=18, S=19
+    // Update Columns U, V, W (Accommodation info)
     const updateRow = [
         accommodationData.type,
         accommodationData.price,
@@ -145,7 +151,7 @@ export async function updateAccommodation(uniqueId: string, accommodationData: a
 
     await sheets.spreadsheets.values.update({
         spreadsheetId,
-        range: `Sheet1!Q${actualRow}:S${actualRow}`,
+        range: `Sheet1!U${actualRow}:W${actualRow}`,
         valueInputOption: 'USER_ENTERED',
         requestBody: {
             values: [updateRow]
@@ -155,7 +161,7 @@ export async function updateAccommodation(uniqueId: string, accommodationData: a
     return true;
 }
 
-export async function updatePaymentProof(uniqueId: string, fileLink: string) {
+export async function updatePaymentProof(uniqueId: string, fileLink: string, type: 'registration' | 'accommodation' = 'accommodation') {
     const spreadsheetId = process.env.GOOGLE_SHEET_ID;
     if (!spreadsheetId) throw new Error("Missing GOOGLE_SHEET_ID");
 
@@ -180,15 +186,15 @@ export async function updatePaymentProof(uniqueId: string, fileLink: string) {
 
     const actualRow = rowIndex + 1;
 
-    // Update Column T (Payment Proof Link) - T is the 20th letter
-    const updateRow = [fileLink];
+    // Column S = Registration Payment Proof, Column X = Accommodation Payment Proof
+    const column = type === 'registration' ? 'S' : 'X';
 
     await sheets.spreadsheets.values.update({
         spreadsheetId,
-        range: `Sheet1!T${actualRow}`,
+        range: `Sheet1!${column}${actualRow}`,
         valueInputOption: 'USER_ENTERED',
         requestBody: {
-            values: [updateRow]
+            values: [[fileLink]]
         }
     });
 
@@ -220,7 +226,7 @@ export async function updateUserDepartment(uniqueId: string, deptData: any) {
 
     const actualRow = rowIndex + 1;
 
-    // Update Columns U, V, W
+    // Update Columns Y, Z, AA
     const updateRow = [
         deptData.status,
         deptData.department || '',
@@ -229,7 +235,7 @@ export async function updateUserDepartment(uniqueId: string, deptData: any) {
 
     await sheets.spreadsheets.values.update({
         spreadsheetId,
-        range: `Sheet1!U${actualRow}:W${actualRow}`,
+        range: `Sheet1!Y${actualRow}:AA${actualRow}`,
         valueInputOption: 'USER_ENTERED',
         requestBody: {
             values: [updateRow]
@@ -332,45 +338,49 @@ export async function getUsers() {
 
     const response = await sheets.spreadsheets.values.get({
         spreadsheetId,
-        range: 'Sheet1!A:X',
+        range: 'Sheet1!A:AB',
     });
 
     const rows = response.data.values;
     if (!rows || rows.length === 0) return [];
 
-    // Map rows to objects for easier consumption
     // Columns mapping from appendRegistration:
-    // 0: UniqueId, 1: Name, 2: Email, 3: Phone, 4: WhatsApp, 5: Gender, 6: LFF Member, 7: Church,
-    // 8: Area, 9: State, 10: Country, 11: Attendance, 12: Bus, 13: Meal, 14: Prayer,
-    // 15: AccRequired, 16: AccType, 17: Price, 18: Duration, 19: PaymentProof,
-    // 20: DeptStatus, 21: Department, 22: SubDept, 23: Timestamp
+    // 0: UniqueId, 1: Title, 2: Name, 3: Email, 4: Phone, 5: WhatsApp, 6: Gender,
+    // 7: LFF Member, 8: Church, 9: Area, 10: State, 11: Country, 12: Attendance,
+    // 13: Bus, 14: Meal, 15: Prayer, 16: RegType, 17: RegAmount, 18: RegPaymentProof,
+    // 19: AccRequired, 20: AccType, 21: AccPrice, 22: Duration, 23: AccPaymentProof,
+    // 24: DeptStatus, 25: Department, 26: SubDept, 27: Timestamp
 
     return rows.map((row, index) => ({
-        rowIndex: index + 1, // 1-based index for potential updates
+        rowIndex: index + 1,
         uniqueId: row[0],
-        fullName: row[1],
-        email: row[2],
-        phoneNumber: row[3],
-        whatsapp: row[4],
-        gender: row[5],
-        isLFFMember: row[6],
-        churchDetails: row[7],
-        areaDistrict: row[8],
-        state: row[9],
-        country: row[10],
-        attendanceType: row[11],
-        busInterest: row[12],
-        mealCollection: row[13],
-        prayerRequest: row[14],
-        needsAccommodation: row[15],
-        accommodationType: row[16],
-        price: row[17],
-        duration: row[18],
-        paymentProof: row[19],
-        departmentStatus: row[20],
-        department: row[21],
-        subDepartment: row[22],
-        timestamp: row[23]
+        title: row[1],
+        fullName: row[2],
+        email: row[3],
+        phoneNumber: row[4],
+        whatsapp: row[5],
+        gender: row[6],
+        isLFFMember: row[7],
+        churchDetails: row[8],
+        areaDistrict: row[9],
+        state: row[10],
+        country: row[11],
+        attendanceType: row[12],
+        busInterest: row[13],
+        mealCollection: row[14],
+        prayerRequest: row[15],
+        registrationType: row[16],
+        registrationAmount: row[17],
+        registrationPaymentProof: row[18],
+        needsAccommodation: row[19],
+        accommodationType: row[20],
+        price: row[21],
+        duration: row[22],
+        paymentProof: row[23],
+        departmentStatus: row[24],
+        department: row[25],
+        subDepartment: row[26],
+        timestamp: row[27]
     }));
 }
 
@@ -902,7 +912,7 @@ export async function deletePaymentAccount(id: string) {
     return true;
 }
 
-export async function getPaymentAccountByType(type: 'store' | 'accommodation') {
+export async function getPaymentAccountByType(type: 'store' | 'accommodation' | 'registration') {
     const accounts = await getPaymentAccounts();
     return accounts.find(a => a.type === type) || null;
 }
