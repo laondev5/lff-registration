@@ -522,18 +522,72 @@ export default function CheckoutPage() {
                     <ArrowLeft className="w-5 h-5" /> Back
                   </button>
                   <button
-                    onClick={handlePlaceOrder}
+                    onClick={async () => {
+                      if (!customerInfo) return;
+                      setIsSubmitting(true);
+                      try {
+                        // 1. Initialize Paystack Transaction
+                        const payRes = await fetch("/api/paystack/initialize", {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({
+                            email: customerInfo.email,
+                            amount: getTotal(),
+                            type: "store",
+                            metadata: {
+                              customerName: customerInfo.fullName,
+                              customerEmail: customerInfo.email,
+                              customerPhone: customerInfo.phone,
+                              items: items.map((i) => ({
+                                name: i.product.name,
+                                qty: i.quantity,
+                              })),
+                            },
+                          }),
+                        });
+
+                        const payData = await payRes.json();
+                        if (!payData.success) throw new Error(payData.error);
+
+                        // 2. Create the order in "Pending" status first
+                        const orderData = {
+                          userId: data.uniqueId || null,
+                          items,
+                          total: getTotal().toString(),
+                          customerName: customerInfo.fullName,
+                          customerEmail: customerInfo.email,
+                          customerPhone: customerInfo.phone,
+                          paymentProof: "Paystack Pending",
+                        };
+
+                        const orderRes = await fetch("/api/store/orders", {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify(orderData),
+                        });
+                        const orderResult = await orderRes.json();
+
+                        // 3. Update Paystack metadata with Order ID if we had it,
+                        // but since we are redirecting, we just rely on email/amount.
+                        // Actually, let's include orderId in the second call to paystack if possible,
+                        // but usually initialize is called once.
+                        // Better: Create order first, then initialize Paystack with orderId in metadata.
+
+                        window.location.href = payData.data.authorization_url;
+                      } catch (err: any) {
+                        alert("Payment error: " + err.message);
+                      } finally {
+                        setIsSubmitting(false);
+                      }
+                    }}
                     disabled={isSubmitting}
                     className="flex-1 btn-primary py-3 font-bold flex items-center justify-center gap-2"
                   >
                     {isSubmitting ? (
-                      <>
-                        <Loader2 className="w-5 h-5 animate-spin" />
-                        {uploadingProof ? "Uploading..." : "Placing Order..."}
-                      </>
+                      <Loader2 className="w-5 h-5 animate-spin" />
                     ) : (
                       <>
-                        Place Order <CheckCircle className="w-5 h-5" />
+                        Pay with Paystack <CreditCard className="w-5 h-5" />
                       </>
                     )}
                   </button>

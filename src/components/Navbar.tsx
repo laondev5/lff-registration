@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ShoppingCart } from "lucide-react";
+import { ShoppingCart, Users } from "lucide-react";
 import { useCartStore } from "@/store/useCartStore";
 import { useEffect, useState } from "react";
 
@@ -29,27 +29,20 @@ export function Navbar() {
         </Link>
 
         <div className="flex items-center gap-6">
-          {/* <Link href="/store" className="text-gray-300 hover:text-white transition-colors text-sm font-medium">
-                        Store
-                    </Link> */}
+          <Link
+            href="/bulk-registration"
+            className="text-gray-300 hover:text-white transition-colors text-sm font-medium flex items-center gap-1.5"
+          >
+            <Users className="w-4 h-4" />
+            Bulk Register
+          </Link>
+
           <Link
             href="/accommodations"
             className="text-gray-300 hover:text-white transition-colors text-sm font-medium"
           >
             Accommodations
           </Link>
-
-          {/* <Link
-            href="/store/cart"
-            className="relative text-gray-300 hover:text-white transition-colors"
-          >
-            <ShoppingCart className="w-6 h-6" />
-            {mounted && itemCount > 0 && (
-              <span className="absolute -top-2 -right-2 bg-primary text-primary-foreground text-[10px] font-bold w-5 h-5 rounded-full flex items-center justify-center border-2 border-background">
-                {itemCount}
-              </span>
-            )}
-          </Link> */}
         </div>
       </div>
     </nav>

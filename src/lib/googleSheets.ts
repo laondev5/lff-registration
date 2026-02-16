@@ -41,7 +41,6 @@ export async function appendRegistration(data: any) {
 
     // Generate a simple unique ID
     const uniqueId = `LFF-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
-    const timestamp = new Date().toISOString();
 
     // Columns:
     // A: UniqueId
@@ -71,7 +70,6 @@ export async function appendRegistration(data: any) {
     // Y: Department Status
     // Z: Department
     // AA: SubDepartment
-    // AB: Timestamp
 
     const row = [
         uniqueId,
@@ -101,12 +99,11 @@ export async function appendRegistration(data: any) {
         '',   // Department Status (New / Member / Just Member)
         '',   // Department
         '',   // SubDepartment
-        timestamp
     ];
 
     await sheets.spreadsheets.values.append({
         spreadsheetId,
-        range: 'Sheet1!A:AB',
+        range: 'Sheet1!A:AA',
         valueInputOption: 'USER_ENTERED',
         insertDataOption: 'INSERT_ROWS',
         requestBody: {
@@ -338,7 +335,7 @@ export async function getUsers() {
 
     const response = await sheets.spreadsheets.values.get({
         spreadsheetId,
-        range: 'Sheet1!A:AB',
+        range: 'Sheet1!A:AA',
     });
 
     const rows = response.data.values;
@@ -380,7 +377,6 @@ export async function getUsers() {
         departmentStatus: row[24],
         department: row[25],
         subDepartment: row[26],
-        timestamp: row[27]
     }));
 }
 

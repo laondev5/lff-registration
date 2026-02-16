@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useRegistrationStore } from "@/store/useRegistrationStore";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -12,39 +12,58 @@ import {
   User,
   Church,
   Calendar,
-  Upload,
-  CheckCircle,
   CreditCard,
+  CheckCircle,
+  UserPlus,
 } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { SuccessAnimation } from "./SuccessAnimation";
 
+// ─── Title → Registration Fee Mapping ──────────────────
 const TITLES = [
   "Bro",
   "Sis",
-  "Minister",
-  "Elders",
   "Jnr Dcn",
   "Jnr Dcns",
   "Snr Dcn",
   "Snr Dcns",
   "Pastor",
+  "Elders",
+  "Minister",
 ];
 
-const REGISTRATION_TYPES = [
-  { label: "Regular & Exhorted", amount: "1,000", value: "regular" },
-  { label: "Deacon & Deaconess", amount: "2,000", value: "deacon" },
-  {
+const TITLE_TO_REG: Record<
+  string,
+  { type: string; label: string; amount: number }
+> = {
+  Bro: { type: "regular", label: "Regular & Exhorted", amount: 1000 },
+  Sis: { type: "regular", label: "Regular & Exhorted", amount: 1000 },
+  "Jnr Dcn": { type: "deacon", label: "Deacon & Deaconess", amount: 2000 },
+  "Jnr Dcns": { type: "deacon", label: "Deacon & Deaconess", amount: 2000 },
+  "Snr Dcn": { type: "deacon", label: "Deacon & Deaconess", amount: 2000 },
+  "Snr Dcns": { type: "deacon", label: "Deacon & Deaconess", amount: 2000 },
+  Pastor: {
+    type: "elders_ministers_pastors",
     label: "Elders, Ministers & Pastors",
-    amount: "3,000",
-    value: "elders_ministers_pastors",
+    amount: 3000,
   },
-  {
-    label: "Convention Partner",
-    amount: "10,000",
-    value: "convention_partner",
+  Elders: {
+    type: "elders_ministers_pastors",
+    label: "Elders, Ministers & Pastors",
+    amount: 3000,
   },
-];
+  Minister: {
+    type: "elders_ministers_pastors",
+    label: "Elders, Ministers & Pastors",
+    amount: 3000,
+  },
+};
+
+const CONVENTION_PARTNER = {
+  type: "convention_partner",
+  label: "Convention Partner",
+  amount: 10000,
+};
 
 // ─── Schemas ──────────────────────────────────────────
 const personalInfoSchema = z.object({
@@ -80,43 +99,33 @@ const stepLabels = [
   { icon: User, label: "Personal" },
   { icon: Church, label: "Church" },
   { icon: Calendar, label: "Preferences" },
-  { icon: CreditCard, label: "Registration" },
+  { icon: CreditCard, label: "Confirm & Pay" },
 ];
 
-interface PaymentAccount {
-  accountName: string;
-  accountNumber: string;
-  bankName: string;
-}
-
 export function RegistrationForm() {
-  const { currentStep, setStep, nextStep, prevStep, updateData, data } =
+  const { currentStep, setStep, nextStep, prevStep, updateData, data, reset } =
     useRegistrationStore();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [submittingType, setSubmittingType] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [selectedRegType, setSelectedRegType] = useState<string>(
-    data.registrationType || "",
-  );
-  const [paymentAccount, setPaymentAccount] = useState<PaymentAccount | null>(
-    null,
-  );
-  const [paymentFile, setPaymentFile] = useState<File | null>(null);
-  const [uploadingPayment, setUploadingPayment] = useState(false);
-  const [paymentUploaded, setPaymentUploaded] = useState(false);
-  const [paymentError, setPaymentError] = useState("");
+  const [isConventionPartner, setIsConventionPartner] = useState(false);
 
+  // Check if we returned from a successful Paystack payment
   useEffect(() => {
-    // Fetch registration payment account
-    fetch("/api/payment-accounts?type=registration")
-      .then((res) => res.json())
-      .then((result) => {
-        if (result.success && result.account) {
-          setPaymentAccount(result.account);
-        }
-      })
-      .catch(() => {});
-  }, []);
+    const status = searchParams.get("status");
+    const uniqueId = searchParams.get("uniqueId");
+    if (status === "success" && uniqueId) {
+      updateData({ uniqueId });
+      setStep(4); // Go to success screen
+    }
+  }, [searchParams, setStep, updateData]);
+
+  // Determine registration info from title
+  const registrationInfo = useMemo(() => {
+    if (isConventionPartner) return CONVENTION_PARTNER;
+    return TITLE_TO_REG[data.title] || null;
+  }, [data.title, isConventionPartner]);
 
   // ─── Step 0: Personal Info Form ─────────────────────
   const {
@@ -182,107 +191,69 @@ export function RegistrationForm() {
 
   const onNextPreferences = (formData: Preferences) => {
     updateData(formData);
-    nextStep(); // Go to registration type step (step 3)
+    nextStep(); // Go to confirmation + pay step (step 3)
   };
 
-  const onSubmitRegistration = async () => {
-    if (!selectedRegType) {
-      alert("Please select a registration type");
+  // Step 3: Pay with Paystack — no registration saved yet
+  const handlePayWithPaystack = async () => {
+    if (!registrationInfo) {
+      alert("Please go back and select a title.");
       return;
     }
-
-    const regType = REGISTRATION_TYPES.find((r) => r.value === selectedRegType);
-    updateData({
-      registrationType: selectedRegType,
-      registrationAmount: regType?.amount || "",
-    });
 
     setIsSubmitting(true);
 
-    const mergedData = {
-      ...data,
-      registrationType: selectedRegType,
-      registrationAmount: regType?.amount || "",
-    };
+    const regType = registrationInfo.type;
+    const amount = registrationInfo.amount;
 
-    const finalData = {
-      title: mergedData.title,
-      fullName: mergedData.fullName,
-      email: mergedData.email,
-      phoneNumber: mergedData.phoneNumber,
-      whatsapp: mergedData.whatsapp,
-      gender: mergedData.gender,
-      isLFFMember: mergedData.isLFFMember,
-      churchDetails: mergedData.churchDetails,
-      areaDistrict: mergedData.areaDistrict,
-      state: mergedData.state,
-      country: mergedData.country,
-      attendanceType: mergedData.attendanceType,
-      busInterest: mergedData.busInterest,
-      mealCollection: mergedData.mealCollection,
-      prayerRequest: mergedData.prayerRequest,
-      needsAccommodation: mergedData.needsAccommodation,
-      registrationType: selectedRegType,
-      registrationAmount: regType?.amount || "",
+    // Build the full registration data to pass via metadata
+    const registrationData = {
+      title: data.title,
+      fullName: data.fullName,
+      email: data.email,
+      phoneNumber: data.phoneNumber,
+      whatsapp: data.whatsapp,
+      gender: data.gender,
+      isLFFMember: data.isLFFMember,
+      churchDetails: data.churchDetails,
+      areaDistrict: data.areaDistrict,
+      state: data.state,
+      country: data.country,
+      attendanceType: data.attendanceType,
+      busInterest: data.busInterest,
+      mealCollection: data.mealCollection,
+      prayerRequest: data.prayerRequest,
+      needsAccommodation: data.needsAccommodation,
+      registrationType: regType,
+      registrationAmount: amount.toLocaleString(),
     };
 
     try {
-      const response = await fetch("/api/register", {
+      const payRes = await fetch("/api/paystack/initialize", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(finalData),
+        body: JSON.stringify({
+          email: data.email,
+          amount: amount,
+          type: "registration",
+          metadata: {
+            fullName: data.fullName,
+            regType,
+            registrationData,
+          },
+        }),
       });
 
-      const result = await response.json();
+      const payData = await payRes.json();
+      if (!payData.success) throw new Error(payData.error);
 
-      if (!response.ok) {
-        throw new Error(result.error || "Registration failed");
-      }
-
-      if (result.success) {
-        updateData({ uniqueId: result.uniqueId });
-        nextStep(); // Go to success/payment screen (step 4)
-      }
-    } catch (error: any) {
-      console.error("Submission error:", error);
-      alert("Error submitting form: " + error.message);
+      // Redirect to Paystack
+      window.location.href = payData.data.authorization_url;
+    } catch (err: any) {
+      console.error("Payment error:", err);
+      alert("Payment error: " + err.message);
     } finally {
       setIsSubmitting(false);
-    }
-  };
-
-  const handlePaymentUpload = async () => {
-    if (!paymentFile || !data.uniqueId) {
-      setPaymentError("Please select a file.");
-      return;
-    }
-
-    setUploadingPayment(true);
-    setPaymentError("");
-
-    const formData = new FormData();
-    formData.append("file", paymentFile);
-    formData.append("uniqueId", data.uniqueId);
-    formData.append("type", "registration");
-
-    try {
-      const response = await fetch("/api/upload-payment", {
-        method: "POST",
-        body: formData,
-      });
-
-      const result = await response.json();
-
-      if (!result.success) {
-        throw new Error(result.error || "Upload failed");
-      }
-
-      setPaymentUploaded(true);
-    } catch (err: any) {
-      console.error(err);
-      setPaymentError(err.message || "An error occurred during upload.");
-    } finally {
-      setUploadingPayment(false);
     }
   };
 
@@ -297,19 +268,20 @@ export function RegistrationForm() {
       if (wantsAccommodation) {
         router.push("/accommodations");
       } else {
-        // setSubmittingType(null);
-        // alert("Thank you for registering! See you at GAC 2026!");
-        // router.push("/");
-
-        // Redirect to department selection
         router.push(`/join-department?id=${data.uniqueId}`);
       }
     }, 500);
   };
 
+  const handleRegisterAnother = () => {
+    reset();
+    setIsConventionPartner(false);
+    setStep(0);
+  };
+
   // ─── Rendering ─────────────────────────────────────
 
-  // For steps 4 & 5 (success/payment + accommodation), hide the stepper
+  // For steps 4 & 5 (success + accommodation), hide the stepper
   const showStepper = currentStep < 4;
 
   return (
@@ -429,7 +401,6 @@ export function RegistrationForm() {
               Phone Number <span className="text-red-400">*</span>
             </label>
             <div className="relative">
-              {/* <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-lg">📞</span> */}
               <input
                 {...regPersonal("phoneNumber")}
                 className="form-input pl-10"
@@ -448,7 +419,6 @@ export function RegistrationForm() {
               WhatsApp Number <span className="text-red-400">*</span>
             </label>
             <div className="relative">
-              {/* <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-lg">📱</span> */}
               <input
                 {...regPersonal("whatsapp")}
                 className="form-input pl-10"
@@ -763,214 +733,158 @@ export function RegistrationForm() {
         </form>
       )}
 
-      {/* ─── Step 3: Registration Type ──────── */}
+      {/* ─── Step 3: Confirmation & Pay ──────── */}
       {currentStep === 3 && (
-        <div className="space-y-5 animate-in fade-in slide-in-from-right-4 duration-300">
+        <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
           <div>
-            <h3 className="text-xl font-bold text-white mb-1">
-              Registration Type
-            </h3>
+            <h3 className="text-xl font-bold text-white mb-1">Confirm & Pay</h3>
             <p className="text-gray-500 text-sm">
-              Select your registration category. Payment will be required to
-              complete registration.
+              Review your details and complete payment to register.
             </p>
           </div>
 
-          <div className="space-y-3">
-            {REGISTRATION_TYPES.map((type) => (
-              <label
-                key={type.value}
-                className={`flex items-center justify-between p-4 rounded-xl border-2 cursor-pointer transition-all ${
-                  selectedRegType === type.value
-                    ? "border-primary bg-primary/10"
-                    : "border-white/10 bg-white/5 hover:border-white/20"
-                }`}
-              >
-                <div className="flex items-center gap-3">
-                  <input
-                    type="radio"
-                    name="registrationType"
-                    value={type.value}
-                    checked={selectedRegType === type.value}
-                    onChange={(e) => setSelectedRegType(e.target.value)}
-                    className="accent-primary w-4 h-4"
-                  />
-                  <span className="text-white font-medium">{type.label}</span>
-                </div>
-                <span className="text-primary font-bold">N{type.amount}</span>
-              </label>
-            ))}
+          {/* Summary Card */}
+          <div className="bg-white/5 border border-white/10 rounded-xl p-5 space-y-3 text-sm">
+            <div className="flex justify-between">
+              <span className="text-gray-400">Name:</span>
+              <span className="text-white font-medium">
+                {data.title} {data.fullName}
+              </span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-400">Email:</span>
+              <span className="text-white">{data.email}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-400">Phone:</span>
+              <span className="text-white">{data.phoneNumber}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-400">Church:</span>
+              <span className="text-white">{data.churchDetails}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-400">Attendance:</span>
+              <span className="text-white capitalize">
+                {data.attendanceType}
+              </span>
+            </div>
           </div>
 
-          <div className="pt-4 flex justify-between">
+          {/* Registration Type (auto-determined) */}
+          <div className="border border-white/10 rounded-xl p-5 bg-white/5">
+            <h4 className="text-sm font-semibold text-gray-300 mb-3">
+              Registration Category
+            </h4>
+
+            {registrationInfo && !isConventionPartner && (
+              <div className="flex items-center justify-between p-4 rounded-lg border-2 border-primary bg-primary/10 mb-3">
+                <div>
+                  <p className="text-white font-medium">
+                    {registrationInfo.label}
+                  </p>
+                  <p className="text-gray-400 text-xs">
+                    Based on your title: {data.title}
+                  </p>
+                </div>
+                <span className="text-primary font-bold text-xl">
+                  ₦{registrationInfo.amount.toLocaleString()}
+                </span>
+              </div>
+            )}
+
+            {isConventionPartner && (
+              <div className="flex items-center justify-between p-4 rounded-lg border-2 border-primary bg-primary/10 mb-3">
+                <div>
+                  <p className="text-white font-medium">
+                    {CONVENTION_PARTNER.label}
+                  </p>
+                  <p className="text-gray-400 text-xs">
+                    Special partnership contribution
+                  </p>
+                </div>
+                <span className="text-primary font-bold text-xl">
+                  ₦{CONVENTION_PARTNER.amount.toLocaleString()}
+                </span>
+              </div>
+            )}
+
+            <label className="flex items-center gap-3 cursor-pointer p-3 rounded-lg border border-white/10 hover:bg-white/5 transition-colors">
+              <input
+                type="checkbox"
+                checked={isConventionPartner}
+                onChange={(e) => setIsConventionPartner(e.target.checked)}
+                className="accent-primary w-4 h-4"
+              />
+              <div>
+                <span className="text-white text-sm font-medium">
+                  Register as Convention Partner instead
+                </span>
+                <p className="text-gray-500 text-xs">₦10,000 and above</p>
+              </div>
+            </label>
+          </div>
+
+          {/* Pay Button */}
+          <button
+            onClick={handlePayWithPaystack}
+            disabled={isSubmitting || !registrationInfo}
+            className="w-full bg-[#09A5DB] hover:bg-[#088ebc] text-white py-4 rounded-xl font-bold flex items-center justify-center gap-2 transition-all shadow-lg shadow-[#09A5DB]/20 disabled:opacity-50 disabled:cursor-not-allowed text-lg"
+          >
+            {isSubmitting ? (
+              <Loader2 className="w-5 h-5 animate-spin" />
+            ) : (
+              <>
+                Pay ₦{registrationInfo?.amount.toLocaleString() || "..."} with
+                Paystack <CreditCard className="w-5 h-5" />
+              </>
+            )}
+          </button>
+
+          <div className="pt-2 flex justify-start">
             <button type="button" onClick={prevStep} className="btn-ghost">
               <ChevronLeft className="w-4 h-4 mr-2" /> Back
-            </button>
-            <button
-              onClick={onSubmitRegistration}
-              disabled={isSubmitting || !selectedRegType}
-              className="btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {isSubmitting ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />{" "}
-                  Submitting...
-                </>
-              ) : (
-                <>
-                  Submit Registration <ChevronRight className="w-4 h-4 ml-2" />
-                </>
-              )}
             </button>
           </div>
         </div>
       )}
 
-      {/* ─── Step 4: Success + Payment ──────── */}
+      {/* ─── Step 4: Success (after payment) ──────── */}
       {currentStep === 4 && (
         <div className="space-y-6 animate-in fade-in duration-500 py-4">
-          {!paymentUploaded ? (
-            <>
-              <SuccessAnimation
-                name={data.fullName}
-                uniqueId={data.uniqueId || "N/A"}
-              />
+          <SuccessAnimation
+            name={data.fullName}
+            uniqueId={data.uniqueId || "N/A"}
+          />
 
-              <div className="border border-white/10 rounded-xl p-6 bg-white/5">
-                <h4 className="text-lg font-bold text-white mb-2 flex items-center gap-2">
-                  <CreditCard className="w-5 h-5 text-primary" /> Complete Your
-                  Payment
-                </h4>
-                <p className="text-gray-400 text-sm mb-4">
-                  Registration is not complete without payment. Please transfer{" "}
-                  <span className="text-primary font-bold">
-                    N
-                    {data.registrationAmount ||
-                      REGISTRATION_TYPES.find(
-                        (r) => r.value === selectedRegType,
-                      )?.amount}
-                  </span>{" "}
-                  to the account below:
-                </p>
-
-                {paymentAccount ? (
-                  <div className="bg-white/5 border border-white/10 rounded-lg p-4 space-y-2 mb-4">
-                    <div className="flex justify-between">
-                      <span className="text-gray-400 text-sm">Bank:</span>
-                      <span className="text-white font-medium">
-                        {paymentAccount.bankName}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-400 text-sm">
-                        Account Number:
-                      </span>
-                      <span className="text-white font-bold text-lg">
-                        {paymentAccount.accountNumber}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-400 text-sm">
-                        Account Name:
-                      </span>
-                      <span className="text-white font-medium">
-                        {paymentAccount.accountName}
-                      </span>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-4 mb-4">
-                    <p className="text-yellow-400 text-sm">
-                      Payment account details not available yet. Please check
-                      back or contact the admin.
-                    </p>
-                  </div>
-                )}
-
-                <div className="space-y-3">
-                  <p className="text-gray-300 text-sm font-medium">
-                    Upload proof of payment:
-                  </p>
-                  <div className="border-2 border-dashed border-gray-700 rounded-xl p-6 text-center hover:border-primary/50 transition-colors bg-white/5">
-                    <input
-                      type="file"
-                      accept="image/*,application/pdf"
-                      onChange={(e) => {
-                        if (e.target.files && e.target.files[0]) {
-                          setPaymentFile(e.target.files[0]);
-                          setPaymentError("");
-                        }
-                      }}
-                      className="hidden"
-                      id="reg-payment-upload"
-                    />
-                    <label
-                      htmlFor="reg-payment-upload"
-                      className="cursor-pointer flex flex-col items-center gap-2"
-                    >
-                      <Upload className="w-8 h-8 text-primary" />
-                      <p className="text-sm text-white">
-                        {paymentFile
-                          ? paymentFile.name
-                          : "Click to select file"}
-                      </p>
-                      <p className="text-xs text-gray-500">JPG, PNG, or PDF</p>
-                    </label>
-                  </div>
-
-                  {paymentError && (
-                    <p className="text-red-400 text-xs text-center">
-                      {paymentError}
-                    </p>
-                  )}
-
-                  <button
-                    onClick={handlePaymentUpload}
-                    disabled={!paymentFile || uploadingPayment}
-                    className="w-full btn-primary py-3 font-bold flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {uploadingPayment ? (
-                      <>
-                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />{" "}
-                        Uploading...
-                      </>
-                    ) : (
-                      "Upload Payment Proof"
-                    )}
-                  </button>
-                </div>
-              </div>
-
-              <div className="text-center">
-                <button
-                  onClick={() => nextStep()}
-                  className="text-sm text-gray-500 hover:text-white transition-colors"
-                >
-                  Skip — I&apos;ll pay later
-                </button>
-              </div>
-            </>
-          ) : (
-            <div className="text-center py-8 space-y-6">
-              <div className="w-20 h-20 bg-green-500/20 rounded-full flex items-center justify-center mx-auto">
-                <CheckCircle className="w-10 h-10 text-green-500" />
-              </div>
-              <div>
-                <h3 className="text-2xl font-bold text-white mb-2">
-                  Payment Proof Uploaded!
-                </h3>
-                <p className="text-gray-400">
-                  Your payment will be verified by the admin. Thank you!
-                </p>
-              </div>
-              <button
-                onClick={() => nextStep()}
-                className="btn-primary text-lg px-8 py-3"
-              >
-                Continue <ChevronRight className="w-5 h-5 ml-2" />
-              </button>
+          <div className="border border-white/10 rounded-xl p-6 bg-white/5 text-center space-y-3">
+            <div className="w-16 h-16 bg-green-500/20 rounded-full flex items-center justify-center mx-auto">
+              <CheckCircle className="w-8 h-8 text-green-500" />
             </div>
-          )}
+            <h4 className="text-lg font-bold text-white">
+              Payment Successful!
+            </h4>
+            <p className="text-gray-400 text-sm">
+              Your registration is confirmed. A confirmation email with your
+              Registration ID has been sent to{" "}
+              <span className="text-primary font-medium">{data.email}</span>.
+            </p>
+            {data.uniqueId && (
+              <div className="bg-primary/10 border border-primary/30 rounded-lg p-3 inline-block">
+                <p className="text-xs text-gray-400">Your Registration ID</p>
+                <p className="text-primary font-bold text-lg">
+                  {data.uniqueId}
+                </p>
+              </div>
+            )}
+          </div>
+
+          <button
+            onClick={() => nextStep()}
+            className="w-full btn-primary py-4 text-lg font-bold"
+          >
+            Continue <ChevronRight className="w-5 h-5 ml-2" />
+          </button>
         </div>
       )}
 
@@ -986,26 +900,35 @@ export function RegistrationForm() {
             </p>
           </div>
 
-          <div className="flex flex-col sm:flex-row justify-center gap-4 max-w-lg mx-auto">
+          <div className="flex flex-col gap-4 max-w-lg mx-auto">
             <button
               onClick={() => handleAccommodationChoice(true, "book")}
               disabled={!!submittingType}
-              className="flex-1 bg-primary text-primary-foreground px-8 py-4 rounded-xl font-bold text-lg hover:scale-[1.03] transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg shadow-primary/20"
+              className="w-full bg-primary text-primary-foreground px-8 py-4 rounded-xl font-bold text-lg hover:scale-[1.03] transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg shadow-primary/20"
             >
               {submittingType === "book" ? (
                 <Loader2 className="animate-spin w-5 h-5" />
               ) : null}
-              Yes, Book Now
+              Yes, Book Accommodation
             </button>
+
             <button
               onClick={() => handleAccommodationChoice(false, "skip")}
               disabled={!!submittingType}
-              className="flex-1 bg-white/5 border border-white/10 text-white px-8 py-4 rounded-xl font-bold text-lg hover:bg-white/10 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              className="w-full bg-white/5 border border-white/10 text-white px-8 py-4 rounded-xl font-bold text-lg hover:bg-white/10 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
               {submittingType === "skip" ? (
                 <Loader2 className="animate-spin w-5 h-5" />
               ) : null}
               No, Thank You
+            </button>
+
+            <button
+              onClick={handleRegisterAnother}
+              className="w-full bg-white/5 border border-dashed border-white/20 text-gray-300 px-8 py-4 rounded-xl font-bold text-lg hover:bg-white/10 hover:text-white transition-all flex items-center justify-center gap-2"
+            >
+              <UserPlus className="w-5 h-5" />
+              Register Another Person
             </button>
           </div>
         </div>

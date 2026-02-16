@@ -84,42 +84,40 @@ export function Hero() {
         </h1>
 
         <div ref={yearRef} className="flex flex-col items-center space-y-6">
-          <span className="text-primary text-xl font-bold uppercase tracking-[0.2em]">
-            From Arkilla to Alheri
-          </span>
-
-          {/* <p className="text-gray-300 text-lg italic leading-relaxed">
-            &ldquo;Thus far the Lord has helped us.&rdquo;
-          </p>
-          <p className="text-gray-400 leading-relaxed">
-            That testimony becomes our banner as Living Faith Foundation marks
-            40 years of God&apos;s undeniable faithfulness.
-          </p>
-
-          <p className="text-gray-400 leading-relaxed">
-            LFF GAC 2026 is not just another gathering &mdash; it is a sacred
-            milestone, a living memorial of mercy, and a prophetic doorway into
-            the next season of the ministry and your life.
-          </p>
-
-          <p className="text-gray-400 leading-relaxed">
-            For four decades, the hand of the Lord has preserved, lifted,
-            expanded, and established this work. Generations have been raised.
-            Destinies have been aligned. Prayers have become testimonies. Now we
-            gather under one name &mdash;{" "}
-            <span className="text-white font-semibold">EBENEZER</span> &mdash;
-            to remember, to rejoice, and to receive fresh grace for what lies
-            ahead.
-          </p> */}
-
-          {/* <div className="pt-4 space-y-3">
-            <p className="text-white text-lg font-medium">
-              Come with gratitude. Come with expectation.
+          <div className="pt-8 space-y-6 max-w-2xl mx-auto">
+            <p className="text-gray-300 text-lg italic leading-relaxed">
+              &ldquo;From Arkilla to Alheri&rdquo;
             </p>
-            <p className="text-primary font-bold text-lg">
-              Register now and be part of this historic celebration.
+            {/* <p className="text-gray-400 leading-relaxed">
+              That testimony becomes our banner as Living Faith Foundation marks
+              40 years of God&apos;s undeniable faithfulness.
+            </p> */}
+
+            {/* <p className="text-gray-400 leading-relaxed">
+              LFF GAC 2026 is not just another gathering &mdash; it is a sacred
+              milestone, a living memorial of mercy, and a prophetic doorway
+              into the next season of the ministry and your life.
+            </p> */}
+
+            <p className="text-gray-400 leading-relaxed">
+              For four decades, the hand of the Lord has preserved, lifted,
+              expanded, and established this work. Generations have been raised.
+              Destinies have been aligned. Prayers have become testimonies. Now
+              we gather under one name &mdash;{" "}
+              <span className="text-white font-semibold">EBENEZER</span> &mdash;
+              to remember, to rejoice, and to receive fresh grace for what lies
+              ahead.
             </p>
-          </div> */}
+
+            {/* <div className="pt-8 space-y-4">
+              <p className="text-white text-lg font-medium">
+                Come with gratitude. Come with expectation.
+              </p>
+              <p className="text-primary font-bold text-lg animate-pulse">
+                Register now and be part of this historic celebration.
+              </p>
+            </div> */}
+          </div>
         </div>
       </div>
     </div>
