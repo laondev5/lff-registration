@@ -17,12 +17,7 @@ export async function POST(request: Request) {
 
         const uniqueId = await appendRegistration(body);
 
-        // Send Welcome Email (Fire and forget, don't block response)
-        if (body.email && body.fullName) {
-            import('@/lib/email').then(({ sendWelcomeEmail }) => {
-                sendWelcomeEmail(body.email, body.fullName).catch(err => console.error("Email failed", err));
-            });
-        }
+
 
         return NextResponse.json({ success: true, uniqueId });
     } catch (error: any) {

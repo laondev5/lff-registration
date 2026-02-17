@@ -13,11 +13,19 @@ export interface ProductVariant {
     sku: string;
 }
 
+export interface PricingTier {
+    minQty: number;
+    maxQty: number | null;
+    pricePerUnit: number;
+}
+
 export interface Product {
     id: string;
     name: string;
     description: string;
     price: string;
+    targetAudience?: 'adult' | 'kids';
+    pricingTiers?: PricingTier[];
     category: string;
     images: string[];
     stock: string;
@@ -53,6 +61,7 @@ interface CartStore {
     updateQuantity: (productId: string, quantity: number, selectedColor?: string, selectedSize?: string) => void;
     clearCart: () => void;
     getTotal: () => number;
+    getEffectivePrice: (product: Product, quantity: number) => number;
 }
 
 export const useCartStore = create<CartStore>()(
@@ -139,9 +148,25 @@ export const useCartStore = create<CartStore>()(
                 }));
             },
             clearCart: () => set({ items: [] }),
+            getEffectivePrice: (product: Product, quantity: number) => {
+                const basePrice = parseFloat(product.price);
+                const tiers = product.pricingTiers;
+                if (!tiers || tiers.length === 0) return basePrice;
+
+                for (const tier of tiers) {
+                    const matchesMin = quantity >= tier.minQty;
+                    const matchesMax = tier.maxQty === null || quantity <= tier.maxQty;
+                    if (matchesMin && matchesMax) {
+                        return tier.pricePerUnit;
+                    }
+                }
+                return basePrice;
+            },
             getTotal: () => {
-                return get().items.reduce((total, item) => {
-                    return total + (parseFloat(item.product.price) * item.quantity);
+                const state = get();
+                return state.items.reduce((total, item) => {
+                    const effectivePrice = state.getEffectivePrice(item.product, item.quantity);
+                    return total + (effectivePrice * item.quantity);
                 }, 0);
             }
         }),

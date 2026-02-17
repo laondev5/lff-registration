@@ -29,6 +29,8 @@ function formatProduct(p: any) {
         name: p.name,
         description: p.description,
         price: String(p.price ?? ''),
+        targetAudience: p.targetAudience || 'adult',
+        pricingTiers: p.pricingTiers || [],
         category: p.category,
         images: p.images || [],
         stock: String(p.stock ?? 0),
@@ -59,6 +61,8 @@ export async function createProduct(data: any) {
         name: data.name,
         description: data.description || '',
         price: Number(data.price),
+        targetAudience: data.targetAudience || 'adult',
+        pricingTiers: data.pricingTiers || [],
         category: data.category || '',
         images: data.images || [],
         stock: data.stock !== undefined && data.stock !== '' ? Number(data.stock) : 0,
@@ -93,6 +97,8 @@ export async function updateProduct(id: string, data: any) {
     if (data.name !== undefined) product.name = data.name;
     if (data.description !== undefined) product.description = data.description;
     if (data.price !== undefined) product.price = Number(data.price);
+    if (data.targetAudience !== undefined) product.targetAudience = data.targetAudience;
+    if (data.pricingTiers !== undefined) product.pricingTiers = data.pricingTiers;
     if (data.category !== undefined) product.category = data.category;
     if (data.images !== undefined) product.images = data.images;
     if (data.stock !== undefined && data.stock !== '') product.stock = Number(data.stock);

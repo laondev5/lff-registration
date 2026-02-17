@@ -99,11 +99,12 @@ export async function appendRegistration(data: any) {
         '',   // Department Status (New / Member / Just Member)
         '',   // Department
         '',   // SubDepartment
+        'Pending' // Registration Status (Column AB)
     ];
 
     await sheets.spreadsheets.values.append({
         spreadsheetId,
-        range: 'Sheet1!A:AA',
+        range: 'Sheet1!A:AB',
         valueInputOption: 'USER_ENTERED',
         insertDataOption: 'INSERT_ROWS',
         requestBody: {
@@ -242,6 +243,44 @@ export async function updateUserDepartment(uniqueId: string, deptData: any) {
     return true;
 }
 
+export async function updateRegistrationStatus(uniqueId: string, status: string) {
+    const spreadsheetId = process.env.GOOGLE_SHEET_ID;
+    if (!spreadsheetId) throw new Error("Missing GOOGLE_SHEET_ID");
+
+    const sheets = await getSheetsClient();
+
+    // Find the row with the uniqueId
+    const response = await sheets.spreadsheets.values.get({
+        spreadsheetId,
+        range: 'Sheet1!A:A',
+    });
+
+    const rows = response.data.values;
+    let rowIndex = -1;
+
+    if (rows) {
+        rowIndex = rows.findIndex(row => row[0] === uniqueId);
+    }
+
+    if (rowIndex === -1) {
+        throw new Error("User not found via Unique ID");
+    }
+
+    const actualRow = rowIndex + 1;
+
+    // Update Column AB (Registration Status)
+    await sheets.spreadsheets.values.update({
+        spreadsheetId,
+        range: `Sheet1!AB${actualRow}`,
+        valueInputOption: 'USER_ENTERED',
+        requestBody: {
+            values: [[status]]
+        }
+    });
+
+    return true;
+}
+
 export async function getUserById(uniqueId: string) {
     const users = await getUsers();
     return users.find(u => u.uniqueId === uniqueId);
@@ -335,7 +374,7 @@ export async function getUsers() {
 
     const response = await sheets.spreadsheets.values.get({
         spreadsheetId,
-        range: 'Sheet1!A:AA',
+        range: 'Sheet1!A:AB',
     });
 
     const rows = response.data.values;
@@ -377,6 +416,7 @@ export async function getUsers() {
         departmentStatus: row[24],
         department: row[25],
         subDepartment: row[26],
+        registrationStatus: row[27] || 'Pending',
     }));
 }
 

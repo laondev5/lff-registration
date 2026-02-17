@@ -22,9 +22,11 @@ export function Navbar() {
           href="/"
           className="text-xl font-bold text-white flex items-center gap-2"
         >
-          <span className="bg-primary text-primary-foreground w-8 h-8 rounded-lg flex items-center justify-center">
-            L
-          </span>
+          <img
+            src="/logo.png"
+            alt="LFF GAC 2026"
+            className="w-8 h-8 rounded-lg object-contain"
+          />
           GAC 2026
         </Link>
 

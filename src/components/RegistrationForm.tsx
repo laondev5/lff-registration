@@ -110,6 +110,17 @@ export function RegistrationForm() {
   const [submittingType, setSubmittingType] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isConventionPartner, setIsConventionPartner] = useState(false);
+  const [paymentAccount, setPaymentAccount] = useState<any>(null);
+
+  // Fetch registration account script
+  useEffect(() => {
+    if (currentStep === 3) {
+      fetch("/api/payment-account?type=registration")
+        .then((res) => res.json())
+        .then((data) => setPaymentAccount(data.account))
+        .catch((err) => console.error("Failed to fetch account:", err));
+    }
+  }, [currentStep]);
 
   // Check if we returned from a successful Paystack payment
   useEffect(() => {
@@ -194,8 +205,8 @@ export function RegistrationForm() {
     nextStep(); // Go to confirmation + pay step (step 3)
   };
 
-  // Step 3: Pay with Paystack — no registration saved yet
-  const handlePayWithPaystack = async () => {
+  // Step 3: Manual Payment Submission
+  const handleManualRegistration = async () => {
     if (!registrationInfo) {
       alert("Please go back and select a title.");
       return;
@@ -206,7 +217,7 @@ export function RegistrationForm() {
     const regType = registrationInfo.type;
     const amount = registrationInfo.amount;
 
-    // Build the full registration data to pass via metadata
+    // Build the full registration data
     const registrationData = {
       title: data.title,
       fullName: data.fullName,
@@ -229,29 +240,20 @@ export function RegistrationForm() {
     };
 
     try {
-      const payRes = await fetch("/api/paystack/initialize", {
+      const res = await fetch("/api/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          email: data.email,
-          amount: amount,
-          type: "registration",
-          metadata: {
-            fullName: data.fullName,
-            regType,
-            registrationData,
-          },
-        }),
+        body: JSON.stringify(registrationData),
       });
 
-      const payData = await payRes.json();
-      if (!payData.success) throw new Error(payData.error);
+      const result = await res.json();
+      if (!result.success) throw new Error(result.error);
 
-      // Redirect to Paystack
-      window.location.href = payData.data.authorization_url;
+      updateData({ uniqueId: result.uniqueId });
+      setStep(4); // Success screen
     } catch (err: any) {
-      console.error("Payment error:", err);
-      alert("Payment error: " + err.message);
+      console.error("Registration error:", err);
+      alert("Registration error: " + err.message);
     } finally {
       setIsSubmitting(false);
     }
@@ -826,20 +828,54 @@ export function RegistrationForm() {
           </div>
 
           {/* Pay Button */}
-          <button
-            onClick={handlePayWithPaystack}
-            disabled={isSubmitting || !registrationInfo}
-            className="w-full bg-[#09A5DB] hover:bg-[#088ebc] text-white py-4 rounded-xl font-bold flex items-center justify-center gap-2 transition-all shadow-lg shadow-[#09A5DB]/20 disabled:opacity-50 disabled:cursor-not-allowed text-lg"
-          >
-            {isSubmitting ? (
-              <Loader2 className="w-5 h-5 animate-spin" />
+          {/* Payment Instructions & Submit */}
+          <div className="bg-primary/5 border border-primary/20 rounded-xl p-5 space-y-4">
+            <h4 className="font-bold text-white flex items-center gap-2">
+              <CreditCard className="w-5 h-5 text-primary" /> Payment
+              Instructions
+            </h4>
+
+            {paymentAccount ? (
+              <div className="bg-white/5 p-4 rounded-lg space-y-2">
+                <p className="text-gray-400 text-sm">
+                  Please transfer the fee to:
+                </p>
+                <div>
+                  <p className="text-xl font-bold text-white tracking-widest">
+                    {paymentAccount.accountNumber}
+                  </p>
+                  <p className="text-white font-medium">
+                    {paymentAccount.bankName}
+                  </p>
+                  <p className="text-sm text-gray-400">
+                    {paymentAccount.accountName}
+                  </p>
+                </div>
+                <p className="text-xs text-primary mt-2">
+                  Use your name "{data.fullName}" as reference/remark.
+                </p>
+              </div>
             ) : (
-              <>
-                Pay ₦{registrationInfo?.amount.toLocaleString() || "..."} with
-                Paystack <CreditCard className="w-5 h-5" />
-              </>
+              <div className="bg-yellow-500/10 text-yellow-500 p-4 rounded-lg text-sm">
+                No payment account configured. Please contact support or proceed
+                if instructed.
+              </div>
             )}
-          </button>
+
+            <button
+              onClick={handleManualRegistration}
+              disabled={isSubmitting || !registrationInfo}
+              className="w-full bg-[#09A5DB] hover:bg-[#088ebc] text-white py-4 rounded-xl font-bold flex items-center justify-center gap-2 transition-all shadow-lg shadow-[#09A5DB]/20 disabled:opacity-50 disabled:cursor-not-allowed text-lg"
+            >
+              {isSubmitting ? (
+                <Loader2 className="w-5 h-5 animate-spin" />
+              ) : (
+                <>
+                  I have made the transfer <CheckCircle className="w-5 h-5" />
+                </>
+              )}
+            </button>
+          </div>
 
           <div className="pt-2 flex justify-start">
             <button type="button" onClick={prevStep} className="btn-ghost">
@@ -862,12 +898,16 @@ export function RegistrationForm() {
               <CheckCircle className="w-8 h-8 text-green-500" />
             </div>
             <h4 className="text-lg font-bold text-white">
-              Payment Successful!
+              Registration Received!
             </h4>
             <p className="text-gray-400 text-sm">
-              Your registration is confirmed. A confirmation email with your
-              Registration ID has been sent to{" "}
-              <span className="text-primary font-medium">{data.email}</span>.
+              Your registration has been received and is{" "}
+              <strong>Pending Confirmation</strong>.
+              <br />A confirmation email will be sent to{" "}
+              <span className="text-primary font-medium">
+                {data.email}
+              </span>{" "}
+              once your payment is verified by the admin.
             </p>
             {data.uniqueId && (
               <div className="bg-primary/10 border border-primary/30 rounded-lg p-3 inline-block">

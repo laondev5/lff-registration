@@ -24,14 +24,8 @@ export async function POST(request: Request) {
 
     let subaccount = '';
     switch (type) {
-      case 'registration':
-        subaccount = process.env.PAYSTACK_REGISTRATION_SUBACCOUNT || '';
-        break;
       case 'store':
         subaccount = process.env.PAYSTACK_STORE_SUBACCOUNT || '';
-        break;
-      case 'accommodation':
-        subaccount = process.env.PAYSTACK_ACCOMMODATION_SUBACCOUNT || '';
         break;
       default:
         return NextResponse.json(

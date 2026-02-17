@@ -12,10 +12,18 @@ export interface IProductColor {
     hex: string;
 }
 
+export interface IPricingTier {
+    minQty: number;
+    maxQty: number | null; // null means unlimited (e.g. "20+")
+    pricePerUnit: number;
+}
+
 export interface IProduct extends Document {
     name: string;
     description: string;
     price: number;
+    targetAudience: 'adult' | 'kids';
+    pricingTiers: IPricingTier[];
     category: string;
     images: string[];
     stock: number;
@@ -38,10 +46,18 @@ const ProductColorSchema = new Schema({
     hex: { type: String, default: '' },
 }, { _id: false });
 
+const PricingTierSchema = new Schema({
+    minQty: { type: Number, required: true },
+    maxQty: { type: Number, default: null },
+    pricePerUnit: { type: Number, required: true },
+}, { _id: false });
+
 const ProductSchema = new Schema({
     name: { type: String, required: true },
     description: { type: String, default: '' },
     price: { type: Number, required: true },
+    targetAudience: { type: String, enum: ['adult', 'kids'], default: 'adult' },
+    pricingTiers: { type: [PricingTierSchema], default: [] },
     category: { type: String, default: '' },
     images: { type: [String], default: [] },
     stock: { type: Number, default: 0 },
