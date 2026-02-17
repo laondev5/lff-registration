@@ -1,11 +1,13 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { ShoppingCart, Users } from "lucide-react";
 import { useCartStore } from "@/store/useCartStore";
 import { useEffect, useState } from "react";
 
 export function Navbar() {
+  const pathname = usePathname();
   const items = useCartStore((state) => state.items);
   const [mounted, setMounted] = useState(false);
 
@@ -45,6 +47,20 @@ export function Navbar() {
           >
             Accommodations
           </Link>
+
+          {pathname?.startsWith("/store") && (
+            <Link
+              href="/store/cart"
+              className="relative text-gray-300 hover:text-white transition-colors"
+            >
+              <ShoppingCart className="w-5 h-5" />
+              {mounted && itemCount > 0 && (
+                <span className="absolute -top-2 -right-2 bg-primary text-white text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center">
+                  {itemCount}
+                </span>
+              )}
+            </Link>
+          )}
         </div>
       </div>
     </nav>
