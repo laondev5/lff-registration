@@ -165,7 +165,14 @@ export const useCartStore = create<CartStore>()(
             getTotal: () => {
                 const state = get();
                 return state.items.reduce((total, item) => {
-                    const effectivePrice = state.getEffectivePrice(item.product, item.quantity);
+                    // Calculate total quantity of THIS product in the cart (sum of all variants)
+                    const totalProductQty = state.items
+                        .filter(i => i.product.id === item.product.id)
+                        .reduce((sum, i) => sum + i.quantity, 0);
+
+                    // valid pricing based on TOTAL quantity of the product
+                    const effectivePrice = state.getEffectivePrice(item.product, totalProductQty);
+                    
                     return total + (effectivePrice * item.quantity);
                 }, 0);
             }

@@ -144,6 +144,7 @@ export default function CheckoutPage() {
         setOrderId(result.id);
         setOrderSuccess(true);
         clearCart();
+        router.push(`/store/order-success?orderId=${result.id}&pickup=true`);
       } else {
         alert("Order failed: " + result.error);
       }

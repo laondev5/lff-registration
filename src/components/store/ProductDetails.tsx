@@ -419,123 +419,201 @@ export function ProductDetails({ product }: { product: Product }) {
           )}
         </div>
 
-        {/* Bulk Order Section */}
+        {/* Bulk Order Section - Redesigned */}
         {hasVariants && (
-          <div className="mt-8 pt-8 border-t border-white/10">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2">
-                <Package size={18} className="text-primary" />
-                <span className="text-sm font-medium text-white">
-                  Order in Bulk
-                </span>
+          <div className="mt-10 p-1 rounded-2xl bg-gradient-to-r from-primary/20 via-primary/10 to-transparent w-full">
+            <div className="bg-[#0f0f0f] border border-primary/30 rounded-xl p-6 relative overflow-hidden">
+              <div className="absolute top-0 right-0 p-4 opacity-10">
+                <Package size={120} />
               </div>
-              <button
-                onClick={() => {
-                  setBulkMode(!bulkMode);
-                  if (!bulkMode && bulkItems.length === 0) {
-                    setBulkItems([
-                      { selectedColor: "", selectedSize: "", quantity: 1 },
-                    ]);
-                  }
-                }}
-                className={`relative w-12 h-6 rounded-full transition-colors ${bulkMode ? "bg-primary" : "bg-white/10"}`}
-              >
-                <div
-                  className={`absolute top-0.5 w-5 h-5 bg-white rounded-full transition-transform ${bulkMode ? "translate-x-6" : "translate-x-0.5"}`}
-                />
-              </button>
-            </div>
 
-            {bulkMode && (
-              <div className="space-y-3 animate-slide-up">
-                {bulkItems.map((item, idx) => (
-                  <div key={idx} className="bulk-order-row">
-                    <select
-                      value={item.selectedColor}
-                      onChange={(e) =>
-                        updateBulkItem(idx, "selectedColor", e.target.value)
-                      }
-                      className="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-primary"
-                    >
-                      <option value="" className="text-black">
-                        Color...
-                      </option>
-                      {product.colors?.map((c) => (
-                        <option
-                          key={c.name}
-                          value={c.name}
-                          className="text-black"
-                        >
-                          {c.name}
-                        </option>
-                      ))}
-                    </select>
-
-                    <select
-                      value={item.selectedSize}
-                      onChange={(e) =>
-                        updateBulkItem(idx, "selectedSize", e.target.value)
-                      }
-                      className="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-primary"
-                    >
-                      <option value="" className="text-black">
-                        Size...
-                      </option>
-                      {product.sizes?.map((s) => (
-                        <option key={s} value={s} className="text-black">
-                          {s}
-                        </option>
-                      ))}
-                    </select>
-
-                    <input
-                      type="number"
-                      min="1"
-                      value={item.quantity}
-                      onChange={(e) =>
-                        updateBulkItem(
-                          idx,
-                          "quantity",
-                          Math.max(1, parseInt(e.target.value) || 1),
-                        )
-                      }
-                      className="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white text-sm text-center focus:outline-none focus:border-primary"
-                    />
-
-                    <button
-                      onClick={() => removeBulkItem(idx)}
-                      className="text-gray-500 hover:text-red-400 p-1 transition-colors"
-                    >
-                      <X size={18} />
-                    </button>
+              <div className="relative z-10">
+                <div className="flex items-start justify-between mb-6">
+                  <div>
+                    <h3 className="text-xl font-bold text-white flex items-center gap-2 mb-2">
+                      <Package className="text-primary" />
+                      Bulk & Wholesale Order
+                    </h3>
+                    <p className="text-gray-400 text-sm max-w-md">
+                      Mix and match different colors and sizes! The discount
+                      applies to the{" "}
+                      <span className="text-primary font-bold">
+                        total quantity
+                      </span>{" "}
+                      of all variants combined.
+                    </p>
                   </div>
-                ))}
+                  {!bulkMode && (
+                    <button
+                      onClick={() => {
+                        setBulkMode(true);
+                        if (bulkItems.length === 0) {
+                          setBulkItems([
+                            {
+                              selectedColor: "",
+                              selectedSize: "",
+                              quantity: 1,
+                            },
+                          ]);
+                        }
+                      }}
+                      className="btn-primary px-6 py-2.5 text-sm font-bold shadow-lg shadow-primary/20 animate-pulse"
+                    >
+                      Start Bulk Order
+                    </button>
+                  )}
+                </div>
 
-                <button
-                  onClick={addBulkRow}
-                  className="w-full py-2 border border-dashed border-white/10 rounded-lg text-sm text-gray-400 hover:text-white hover:border-white/20 transition-colors flex items-center justify-center gap-2"
-                >
-                  <Plus size={14} /> Add Another Variant
-                </button>
+                {bulkMode && (
+                  <div className="space-y-4 animate-slide-up">
+                    <div className="bg-white/5 rounded-xl p-4 border border-white/5 space-y-3">
+                      {bulkItems.map((item, idx) => (
+                        <div
+                          key={idx}
+                          className="grid grid-cols-14 gap-3 items-center"
+                        >
+                          <div className="col-span-12 md:col-span-5">
+                            <select
+                              value={item.selectedColor}
+                              onChange={(e) =>
+                                updateBulkItem(
+                                  idx,
+                                  "selectedColor",
+                                  e.target.value,
+                                )
+                              }
+                              className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2.5 text-white text-sm focus:outline-none focus:border-primary transition-colors"
+                            >
+                              <option value="" className="text-gray-500">
+                                Select Color...
+                              </option>
+                              {product.colors?.map((c) => (
+                                <option
+                                  key={c.name}
+                                  value={c.name}
+                                  className="text-black"
+                                >
+                                  {c.name}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
 
-                {bulkItems.length > 0 && (
-                  <div className="flex items-center justify-between pt-3 border-t border-white/10">
-                    <div className="text-sm text-gray-400">
-                      {
-                        bulkItems.filter(
-                          (i) => i.selectedColor && i.selectedSize,
-                        ).length
-                      }{" "}
-                      items ({totalBulkQty} pcs),{" "}
-                      <span className="text-white font-bold">
-                        ₦{bulkTotal.toLocaleString()}
-                      </span>
-                      {bulkDiscountPercent > 0 && (
-                        <span className="ml-2 text-xs bg-green-500/20 text-green-400 px-1.5 py-0.5 rounded">
-                          {bulkDiscountPercent}% off
-                        </span>
-                      )}
+                          <div className="col-span-12 md:col-span-4">
+                            <select
+                              value={item.selectedSize}
+                              onChange={(e) =>
+                                updateBulkItem(
+                                  idx,
+                                  "selectedSize",
+                                  e.target.value,
+                                )
+                              }
+                              className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2.5 text-white text-sm focus:outline-none focus:border-primary transition-colors"
+                            >
+                              <option value="" className="text-gray-500">
+                                Select Size...
+                              </option>
+                              {product.sizes?.map((s) => (
+                                <option
+                                  key={s}
+                                  value={s}
+                                  className="text-black"
+                                >
+                                  {s} (Size)
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+
+                          <div className="col-span-9 md:col-span-2 flex items-center gap-1">
+                            <button
+                              onClick={() =>
+                                updateBulkItem(
+                                  idx,
+                                  "quantity",
+                                  Math.max(1, item.quantity - 1),
+                                )
+                              }
+                              className="w-10 h-10 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-white hover:bg-white/10 transition-colors"
+                            >
+                              <Minus size={16} />
+                            </button>
+                            <input
+                              type="number"
+                              min="1"
+                              value={item.quantity}
+                              onChange={(e) =>
+                                updateBulkItem(
+                                  idx,
+                                  "quantity",
+                                  Math.max(1, parseInt(e.target.value) || 1),
+                                )
+                              }
+                              className="w-16 h-10 text-center bg-white/5 border border-white/10 rounded-lg text-white focus:outline-none focus:border-primary"
+                            />
+                            <button
+                              onClick={() =>
+                                updateBulkItem(
+                                  idx,
+                                  "quantity",
+                                  item.quantity + 1,
+                                )
+                              }
+                              className="w-10 h-10 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-white hover:bg-white/10 transition-colors"
+                            >
+                              <Plus size={16} />
+                            </button>
+                          </div>
+
+                          <div className="col-span-3 md:col-span-3 flex justify-end">
+                            <button
+                              onClick={() => removeBulkItem(idx)}
+                              className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-red-400 hover:bg-red-400/10 rounded-lg transition-all"
+                            >
+                              <X size={18} />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
                     </div>
+
+                    <div className="flex flex-col md:flex-row gap-4 justify-between items-center pt-2">
+                      <button
+                        onClick={addBulkRow}
+                        className="text-sm text-primary hover:text-primary/80 font-medium flex items-center gap-2 px-2 py-1"
+                      >
+                        <Plus size={16} /> Add Another Variant
+                      </button>
+
+                      <div className="flex items-center gap-6 bg-white/5 px-6 py-3 rounded-xl border border-white/10 ml-auto w-full md:w-auto justify-between md:justify-end">
+                        <div className="text-right">
+                          <div className="text-xs text-gray-400">
+                            Total Items
+                          </div>
+                          <div className="font-bold text-white text-lg">
+                            {totalBulkQty} pcs
+                          </div>
+                        </div>
+                        <div className="h-8 w-px bg-white/10 mx-2"></div>
+                        <div className="text-right">
+                          <div className="text-xs text-gray-400">
+                            Total Price
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="font-bold text-primary text-xl">
+                              ₦{bulkTotal.toLocaleString()}
+                            </span>
+                            {bulkDiscountPercent > 0 && (
+                              <span className="bg-green-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded">
+                                -{bulkDiscountPercent}%
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
                     <button
                       onClick={handleBulkAddToCart}
                       disabled={
@@ -544,14 +622,14 @@ export function ProductDetails({ product }: { product: Product }) {
                             i.selectedColor && i.selectedSize && i.quantity > 0,
                         ).length === 0
                       }
-                      className="btn-primary px-6 py-2 text-sm disabled:opacity-40 disabled:cursor-not-allowed"
+                      className="w-full btn-primary py-3.5 text-base font-bold shadow-lg shadow-primary/25 hover:shadow-primary/40 transition-all disabled:opacity-50 disabled:cursor-not-allowed mt-2"
                     >
-                      Add All to Cart
+                      Add Bulk Order to Cart
                     </button>
                   </div>
                 )}
               </div>
-            )}
+            </div>
           </div>
         )}
       </div>

@@ -38,9 +38,14 @@ export default function CartPage() {
           {/* Cart Items */}
           <div className="lg:col-span-2 space-y-4">
             {items.map((item, idx) => {
+              // Calculate total quantity of this product (across all variants) in the cart
+              const totalProductQty = items
+                .filter((i) => i.product.id === item.product.id)
+                .reduce((sum, i) => sum + i.quantity, 0);
+
               const effectivePrice = getEffectivePrice(
                 item.product,
-                item.quantity,
+                totalProductQty,
               );
               const basePrice = parseInt(item.product.price);
               const isDiscounted = effectivePrice < basePrice;
