@@ -16,7 +16,7 @@ export async function GET(request: Request) {
     let redirectUrl = '/';
     switch (type) {
       case 'store':
-        redirectUrl = '/store/order-success';
+        redirectUrl = `/store/order-success?orderId=${reference}&clearCart=true`;
         break;
     }
 

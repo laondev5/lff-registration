@@ -3,12 +3,20 @@
 import Link from "next/link";
 import { CheckCircle, MapPin, ShoppingBag } from "lucide-react";
 import { useSearchParams } from "next/navigation";
-import { Suspense } from "react";
+import { Suspense, useEffect } from "react";
+import { useCartStore } from "@/store/useCartStore";
 
 function SuccessContent() {
   const searchParams = useSearchParams();
   const orderId = searchParams.get("orderId");
+  const shouldClearCart = searchParams.get("clearCart");
+  const { clearCart } = useCartStore();
 
+  useEffect(() => {
+    if (shouldClearCart === "true") {
+      clearCart();
+    }
+  }, [shouldClearCart, clearCart]);
   return (
     <div className="bg-card border border-white/10 text-card-foreground p-8 rounded-2xl shadow-2xl max-w-lg w-full text-center space-y-6 animate-in fade-in zoom-in duration-500">
       <div className="w-20 h-20 bg-green-500/20 rounded-full flex items-center justify-center mx-auto">
