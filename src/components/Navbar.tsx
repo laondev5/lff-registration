@@ -27,9 +27,8 @@ export function Navbar() {
           <img
             src="/logo.png"
             alt="LFF GAC 2026"
-            className="w-8 h-8 rounded-lg object-contain"
+            className="w-24 h-24 p-4 rounded-lg object-contain"
           />
-          GAC 2026
         </Link>
 
         <div className="flex items-center gap-6">

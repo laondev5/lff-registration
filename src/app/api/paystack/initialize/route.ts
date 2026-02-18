@@ -22,6 +22,19 @@ export async function POST(request: Request) {
       );
     }
 
+    // Derive the base URL from the request so it works on any device/deployment
+    let origin = request.headers.get('origin') || '';
+    if (!origin) {
+      try {
+        const referer = request.headers.get('referer');
+        if (referer) origin = new URL(referer).origin;
+      } catch { /* ignore invalid referer */ }
+    }
+    if (!origin) {
+      origin = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
+    }
+    const callbackUrl = `${origin}/api/paystack/callback`;
+
     let subaccount = '';
     switch (type) {
       case 'store':
@@ -37,6 +50,7 @@ export async function POST(request: Request) {
     const transaction = await initializeTransaction({
       email,
       amount: parsedAmount,
+      callback_url: callbackUrl,
       subaccount,
       metadata: {
         ...metadata,
