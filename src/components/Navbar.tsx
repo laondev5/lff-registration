@@ -32,22 +32,7 @@ export function Navbar() {
         </Link>
 
         <div className="flex items-center gap-6">
-          <Link
-            href="/bulk-registration"
-            className="text-gray-300 hover:text-white transition-colors text-sm font-medium flex items-center gap-1.5"
-          >
-            <Users className="w-4 h-4" />
-            Bulk Register
-          </Link>
-
-          <Link
-            href="/accommodations"
-            className="text-gray-300 hover:text-white transition-colors text-sm font-medium"
-          >
-            Accommodations
-          </Link>
-
-          {pathname?.startsWith("/store") && (
+          {pathname?.startsWith("/store") ? (
             <Link
               href="/store/cart"
               className="relative text-gray-300 hover:text-white transition-colors"
@@ -59,6 +44,23 @@ export function Navbar() {
                 </span>
               )}
             </Link>
+          ) : (
+            <>
+              <Link
+                href="/bulk-registration"
+                className="text-gray-300 hover:text-white transition-colors text-sm font-medium flex items-center gap-1.5"
+              >
+                <Users className="w-4 h-4" />
+                Bulk Register
+              </Link>
+
+              <Link
+                href="/accommodations"
+                className="text-gray-300 hover:text-white transition-colors text-sm font-medium"
+              >
+                Accommodations
+              </Link>
+            </>
           )}
         </div>
       </div>
