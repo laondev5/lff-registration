@@ -69,9 +69,13 @@ export async function initializeTransaction(params: {
   callback_url?: string;
   subaccount?: string;
   metadata?: any;
+  type?: 'registration' | 'store';
 }) {
-  const secretKey = process.env.PAYSTACK_SECRET_KEY;
-  if (!secretKey) throw new Error('PAYSTACK_SECRET_KEY is not defined');
+  const secretKey = params.type === 'registration' 
+    ? process.env.PAYSTACK_REG_SECRET_KEY 
+    : process.env.PAYSTACK_SECRET_KEY;
+    
+  if (!secretKey) throw new Error(`Secret key not defined for type: ${params.type || 'default'}`);
 
   // Paystack expects amount in kobo
   const amountInKobo = Math.round(params.amount * 100);
@@ -100,9 +104,12 @@ export async function initializeTransaction(params: {
   return result.data;
 }
 
-export async function verifyTransaction(reference: string) {
-  const secretKey = process.env.PAYSTACK_SECRET_KEY;
-  if (!secretKey) throw new Error('PAYSTACK_SECRET_KEY is not defined');
+export async function verifyTransaction(reference: string, type?: 'registration' | 'store') {
+  const secretKey = type === 'registration' 
+    ? process.env.PAYSTACK_REG_SECRET_KEY 
+    : process.env.PAYSTACK_SECRET_KEY;
+    
+  if (!secretKey) throw new Error(`Secret key not defined for type: ${type || 'default'}`);
 
   const response = await fetch(`${PAYSTACK_BASE_URL}/transaction/verify/${reference}`, {
     method: 'GET',

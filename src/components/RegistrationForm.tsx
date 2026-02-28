@@ -240,20 +240,31 @@ export function RegistrationForm() {
     };
 
     try {
-      const res = await fetch("/api/register", {
+      const res = await fetch("/api/paystack/initialize", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(registrationData),
+        body: JSON.stringify({
+          email: data.email,
+          amount: amount,
+          type: "registration",
+          metadata: {
+            registrationData,
+          },
+        }),
       });
 
       const result = await res.json();
       if (!result.success) throw new Error(result.error);
 
-      updateData({ uniqueId: result.uniqueId });
-      setStep(4); // Success screen
+      // Redirect to Paystack checkout
+      if (result.data?.authorization_url) {
+        window.location.href = result.data.authorization_url;
+      } else {
+        throw new Error("No authorization URL returned from Paystack");
+      }
     } catch (err: any) {
-      console.error("Registration error:", err);
-      alert("Registration error: " + err.message);
+      console.error("Registration initiation error:", err);
+      alert("Registration initiation error: " + err.message);
     } finally {
       setIsSubmitting(false);
     }
@@ -278,7 +289,11 @@ export function RegistrationForm() {
   const handleRegisterAnother = () => {
     reset();
     setIsConventionPartner(false);
-    setStep(0);
+    // Remove query parameters like uniqueId and status to prevent re-triggering success
+    router.replace("/");
+    setTimeout(() => {
+      setStep(0);
+    }, 100);
   };
 
   // ─── Rendering ─────────────────────────────────────
@@ -287,7 +302,7 @@ export function RegistrationForm() {
   const showStepper = currentStep < 4;
 
   return (
-    <div className="bg-card text-card-foreground p-6 md:p-8 rounded-xl w-full min-h-[450px] relative overflow-hidden">
+    <div className="bg-card text-card-foreground p-6 md:p-8 rounded-xl w-full min-h-[450px] relative overflow-hidden shadow-lg border border-gray-200">
       {/* ─── Progress Stepper ─────────────── */}
       {showStepper && (
         <div className="mb-8">
@@ -302,14 +317,14 @@ export function RegistrationForm() {
                         ? "bg-green-500 text-white border-green-500"
                         : currentStep === i
                           ? "bg-primary text-primary-foreground border-primary shadow-lg shadow-primary/30"
-                          : "bg-transparent border-gray-600 text-gray-500"
+                          : "bg-white border-gray-300 text-gray-400"
                     }`}
                   >
                     {currentStep > i ? "✓" : <Icon className="w-4 h-4" />}
                   </div>
                   <span
                     className={`mt-2 text-xs font-medium ${
-                      currentStep >= i ? "text-white" : "text-gray-500"
+                      currentStep >= i ? "text-gray-900" : "text-gray-400"
                     }`}
                   >
                     {step.label}
@@ -318,7 +333,7 @@ export function RegistrationForm() {
               );
             })}
             {/* Progress line */}
-            <div className="absolute top-5 left-[12.5%] right-[12.5%] h-0.5 bg-gray-700 -z-0">
+            <div className="absolute top-5 left-[12.5%] right-[12.5%] h-0.5 bg-gray-200 -z-0">
               <div
                 className="h-full bg-gradient-to-r from-green-500 to-primary transition-all duration-500 ease-out"
                 style={{ width: `${(currentStep / 3) * 100}%` }}
@@ -335,25 +350,20 @@ export function RegistrationForm() {
           className="space-y-5 animate-in fade-in slide-in-from-right-4 duration-300"
         >
           <div>
-            <h3 className="text-xl font-bold text-white mb-1">
+            <h3 className="text-xl font-bold text-gray-900 mb-1">
               Personal Information
             </h3>
             <p className="text-gray-500 text-sm">Tell us about yourself</p>
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-sm font-medium text-gray-300">
+            <label className="text-sm font-medium text-gray-700">
               Title <span className="text-red-400">*</span>
             </label>
-            <select
-              {...regPersonal("title")}
-              className="form-input text-gray-600"
-            >
-              <option value="" className="text-gray-600">
-                Select title
-              </option>
+            <select {...regPersonal("title")} className="form-input">
+              <option value="">Select title</option>
               {TITLES.map((t) => (
-                <option key={t} value={t} className="text-gray-600">
+                <option key={t} value={t}>
                   {t}
                 </option>
               ))}
@@ -366,7 +376,7 @@ export function RegistrationForm() {
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-sm font-medium text-gray-300">
+            <label className="text-sm font-medium text-gray-700">
               Full Name <span className="text-red-400">*</span>
             </label>
             <input
@@ -382,7 +392,7 @@ export function RegistrationForm() {
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-sm font-medium text-gray-300">
+            <label className="text-sm font-medium text-gray-700">
               Email Address <span className="text-red-400">*</span>
             </label>
             <input
@@ -399,7 +409,7 @@ export function RegistrationForm() {
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-sm font-medium text-gray-300">
+            <label className="text-sm font-medium text-gray-700">
               Phone Number <span className="text-red-400">*</span>
             </label>
             <div className="relative">
@@ -417,7 +427,7 @@ export function RegistrationForm() {
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-sm font-medium text-gray-300">
+            <label className="text-sm font-medium text-gray-700">
               WhatsApp Number <span className="text-red-400">*</span>
             </label>
             <div className="relative">
@@ -435,7 +445,7 @@ export function RegistrationForm() {
           </div>
 
           <div className="space-y-2">
-            <label className="text-sm font-medium text-gray-300">
+            <label className="text-sm font-medium text-gray-700">
               Gender <span className="text-red-400">*</span>
             </label>
             <div className="flex gap-4">
@@ -480,7 +490,7 @@ export function RegistrationForm() {
           className="space-y-5 animate-in fade-in slide-in-from-right-4 duration-300"
         >
           <div>
-            <h3 className="text-xl font-bold text-white mb-1">
+            <h3 className="text-xl font-bold text-gray-900 mb-1">
               Church & Location
             </h3>
             <p className="text-gray-500 text-sm">
@@ -489,7 +499,7 @@ export function RegistrationForm() {
           </div>
 
           <div className="space-y-2">
-            <label className="text-sm font-medium text-gray-300">
+            <label className="text-sm font-medium text-gray-700">
               Are you a member of the Living Faith Foundation?{" "}
               <span className="text-red-400">*</span>
             </label>
@@ -521,7 +531,7 @@ export function RegistrationForm() {
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-sm font-medium text-gray-300">
+            <label className="text-sm font-medium text-gray-700">
               {isLFFMember === "yes"
                 ? "State church name, District and State"
                 : "State your church name"}{" "}
@@ -545,7 +555,7 @@ export function RegistrationForm() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-1.5">
-              <label className="text-sm font-medium text-gray-300">
+              <label className="text-sm font-medium text-gray-700">
                 Area/District <span className="text-red-400">*</span>
               </label>
               <input
@@ -560,7 +570,7 @@ export function RegistrationForm() {
               )}
             </div>
             <div className="space-y-1.5">
-              <label className="text-sm font-medium text-gray-300">
+              <label className="text-sm font-medium text-gray-700">
                 State <span className="text-red-400">*</span>
               </label>
               <input
@@ -577,7 +587,7 @@ export function RegistrationForm() {
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-sm font-medium text-gray-300">
+            <label className="text-sm font-medium text-gray-700">
               Country <span className="text-red-400">*</span>
             </label>
             <input
@@ -610,7 +620,7 @@ export function RegistrationForm() {
           className="space-y-5 animate-in fade-in slide-in-from-right-4 duration-300"
         >
           <div>
-            <h3 className="text-xl font-bold text-white mb-1">
+            <h3 className="text-xl font-bold text-gray-900 mb-1">
               Event Preferences
             </h3>
             <p className="text-gray-500 text-sm">
@@ -619,7 +629,7 @@ export function RegistrationForm() {
           </div>
 
           <div className="space-y-2">
-            <label className="text-sm font-medium text-gray-300">
+            <label className="text-sm font-medium text-gray-700">
               How do you like to attend GAC 2026?{" "}
               <span className="text-red-400">*</span>
             </label>
@@ -651,7 +661,7 @@ export function RegistrationForm() {
           </div>
 
           <div className="space-y-2">
-            <label className="text-sm font-medium text-gray-300">
+            <label className="text-sm font-medium text-gray-700">
               Would you like to follow our buses from your Area/District?{" "}
               <span className="text-red-400">*</span>
             </label>
@@ -683,7 +693,7 @@ export function RegistrationForm() {
           </div>
 
           <div className="space-y-2">
-            <label className="text-sm font-medium text-gray-300">
+            <label className="text-sm font-medium text-gray-700">
               Where will you like to collect your meal?{" "}
               <span className="text-red-400">*</span>
             </label>
@@ -714,7 +724,7 @@ export function RegistrationForm() {
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-sm font-medium text-gray-300">
+            <label className="text-sm font-medium text-gray-700">
               What do you want God to do for you at GAC 2026?
             </label>
             <textarea
@@ -739,53 +749,55 @@ export function RegistrationForm() {
       {currentStep === 3 && (
         <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
           <div>
-            <h3 className="text-xl font-bold text-white mb-1">Confirm & Pay</h3>
+            <h3 className="text-xl font-bold text-gray-900 mb-1">
+              Confirm & Pay
+            </h3>
             <p className="text-gray-500 text-sm">
               Review your details and complete payment to register.
             </p>
           </div>
 
           {/* Summary Card */}
-          <div className="bg-white/5 border border-white/10 rounded-xl p-5 space-y-3 text-sm">
+          <div className="bg-gray-50 border border-gray-200 rounded-xl p-5 space-y-3 text-sm">
             <div className="flex justify-between">
-              <span className="text-gray-400">Name:</span>
-              <span className="text-white font-medium">
+              <span className="text-gray-500">Name:</span>
+              <span className="text-gray-900 font-medium">
                 {data.title} {data.fullName}
               </span>
             </div>
             <div className="flex justify-between">
-              <span className="text-gray-400">Email:</span>
-              <span className="text-white">{data.email}</span>
+              <span className="text-gray-500">Email:</span>
+              <span className="text-gray-900">{data.email}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-gray-400">Phone:</span>
-              <span className="text-white">{data.phoneNumber}</span>
+              <span className="text-gray-500">Phone:</span>
+              <span className="text-gray-900">{data.phoneNumber}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-gray-400">Church:</span>
-              <span className="text-white">{data.churchDetails}</span>
+              <span className="text-gray-500">Church:</span>
+              <span className="text-gray-900">{data.churchDetails}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-gray-400">Attendance:</span>
-              <span className="text-white capitalize">
+              <span className="text-gray-500">Attendance:</span>
+              <span className="text-gray-900 capitalize">
                 {data.attendanceType}
               </span>
             </div>
           </div>
 
           {/* Registration Type (auto-determined) */}
-          <div className="border border-white/10 rounded-xl p-5 bg-white/5">
-            <h4 className="text-sm font-semibold text-gray-300 mb-3">
+          <div className="border border-gray-200 rounded-xl p-5 bg-gray-50">
+            <h4 className="text-sm font-semibold text-gray-700 mb-3">
               Registration Category
             </h4>
 
             {registrationInfo && !isConventionPartner && (
               <div className="flex items-center justify-between p-4 rounded-lg border-2 border-primary bg-primary/10 mb-3">
                 <div>
-                  <p className="text-white font-medium">
+                  <p className="text-gray-900 font-medium">
                     {registrationInfo.label}
                   </p>
-                  <p className="text-gray-400 text-xs">
+                  <p className="text-gray-500 text-xs">
                     Based on your title: {data.title}
                   </p>
                 </div>
@@ -798,10 +810,10 @@ export function RegistrationForm() {
             {isConventionPartner && (
               <div className="flex items-center justify-between p-4 rounded-lg border-2 border-primary bg-primary/10 mb-3">
                 <div>
-                  <p className="text-white font-medium">
+                  <p className="text-gray-900 font-medium">
                     {CONVENTION_PARTNER.label}
                   </p>
-                  <p className="text-gray-400 text-xs">
+                  <p className="text-gray-500 text-xs">
                     Special partnership contribution
                   </p>
                 </div>
@@ -811,7 +823,7 @@ export function RegistrationForm() {
               </div>
             )}
 
-            <label className="flex items-center gap-3 cursor-pointer p-3 rounded-lg border border-white/10 hover:bg-white/5 transition-colors">
+            <label className="flex items-center gap-3 cursor-pointer p-3 rounded-lg border border-gray-200 hover:bg-gray-100 transition-colors">
               <input
                 type="checkbox"
                 checked={isConventionPartner}
@@ -819,7 +831,7 @@ export function RegistrationForm() {
                 className="accent-primary w-4 h-4"
               />
               <div>
-                <span className="text-white text-sm font-medium">
+                <span className="text-gray-900 text-sm font-medium">
                   Register as Convention Partner instead
                 </span>
                 <p className="text-gray-500 text-xs">₦10,000 and above</p>
@@ -830,24 +842,24 @@ export function RegistrationForm() {
           {/* Pay Button */}
           {/* Payment Instructions & Submit */}
           <div className="bg-primary/5 border border-primary/20 rounded-xl p-5 space-y-4">
-            <h4 className="font-bold text-white flex items-center gap-2">
+            <h4 className="font-bold text-gray-900 flex items-center gap-2">
               <CreditCard className="w-5 h-5 text-primary" /> Payment
               Instructions
             </h4>
 
             {paymentAccount ? (
-              <div className="bg-white/5 p-4 rounded-lg space-y-2">
-                <p className="text-gray-400 text-sm">
+              <div className="bg-gray-50 p-4 rounded-lg space-y-2">
+                <p className="text-gray-500 text-sm">
                   Please transfer the fee to:
                 </p>
                 <div>
-                  <p className="text-xl font-bold text-white tracking-widest">
+                  <p className="text-xl font-bold text-gray-900 tracking-widest">
                     {paymentAccount.accountNumber}
                   </p>
-                  <p className="text-white font-medium">
+                  <p className="text-gray-900 font-medium">
                     {paymentAccount.bankName}
                   </p>
-                  <p className="text-sm text-gray-400">
+                  <p className="text-sm text-gray-500">
                     {paymentAccount.accountName}
                   </p>
                 </div>
@@ -893,14 +905,14 @@ export function RegistrationForm() {
             uniqueId={data.uniqueId || "N/A"}
           />
 
-          <div className="border border-white/10 rounded-xl p-6 bg-white/5 text-center space-y-3">
+          <div className="border border-gray-200 rounded-xl p-6 bg-gray-50 text-center space-y-3">
             <div className="w-16 h-16 bg-green-500/20 rounded-full flex items-center justify-center mx-auto">
               <CheckCircle className="w-8 h-8 text-green-500" />
             </div>
-            <h4 className="text-lg font-bold text-white">
+            <h4 className="text-lg font-bold text-gray-900">
               Registration Received!
             </h4>
-            <p className="text-gray-400 text-sm">
+            <p className="text-gray-500 text-sm">
               Your registration has been received and is{" "}
               <strong>Pending Confirmation</strong>.
               <br />A confirmation email will be sent to{" "}
@@ -932,10 +944,10 @@ export function RegistrationForm() {
       {currentStep === 5 && (
         <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-300 py-8">
           <div className="text-center">
-            <h3 className="text-2xl md:text-3xl font-bold text-white mb-3">
+            <h3 className="text-2xl md:text-3xl font-bold text-gray-900 mb-3">
               One More Thing...
             </h3>
-            <p className="text-gray-400 text-lg max-w-md mx-auto">
+            <p className="text-gray-500 text-lg max-w-md mx-auto">
               Would you like to book an accommodation with us for GAC 2026?
             </p>
           </div>
@@ -955,7 +967,7 @@ export function RegistrationForm() {
             <button
               onClick={() => handleAccommodationChoice(false, "skip")}
               disabled={!!submittingType}
-              className="w-full bg-white/5 border border-white/10 text-white px-8 py-4 rounded-xl font-bold text-lg hover:bg-white/10 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              className="w-full bg-gray-50 border border-gray-200 text-gray-700 px-8 py-4 rounded-xl font-bold text-lg hover:bg-gray-100 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
               {submittingType === "skip" ? (
                 <Loader2 className="animate-spin w-5 h-5" />
@@ -965,7 +977,7 @@ export function RegistrationForm() {
 
             <button
               onClick={handleRegisterAnother}
-              className="w-full bg-white/5 border border-dashed border-white/20 text-gray-300 px-8 py-4 rounded-xl font-bold text-lg hover:bg-white/10 hover:text-white transition-all flex items-center justify-center gap-2"
+              className="w-full bg-gray-50 border border-dashed border-gray-300 text-gray-600 px-8 py-4 rounded-xl font-bold text-lg hover:bg-gray-100 hover:text-gray-900 transition-all flex items-center justify-center gap-2"
             >
               <UserPlus className="w-5 h-5" />
               Register Another Person

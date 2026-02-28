@@ -1,5 +1,8 @@
 import { NextResponse } from 'next/server';
 import { verifyTransaction } from '@/lib/paystack';
+import { appendRegistration } from '@/lib/googleSheets';
+import { sendRegistrationEmail } from '@/lib/email';
+import * as QRCode from 'qrcode';
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -10,13 +13,47 @@ export async function GET(request: Request) {
   }
 
   try {
-    const data = await verifyTransaction(reference);
+    const typeFromQuery = searchParams.get('type') as 'registration' | 'store' | undefined;
+    const data = await verifyTransaction(reference, typeFromQuery);
     const type = data.metadata?.transaction_type;
+    const registrationData = data.metadata?.registrationData;
 
     let redirectUrl = '/';
     switch (type) {
       case 'store':
         redirectUrl = `/store/order-success?orderId=${reference}&clearCart=true`;
+        break;
+      case 'registration':
+        if (registrationData) {
+          // Add registration details and get unique ID
+          const uniqueId = await appendRegistration(registrationData);
+          
+          // Generate QR code (encode the link to the admin scanner)
+          const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
+          const scanUrl = `${baseUrl}/admin/scanner?id=${uniqueId}`;
+          const qrCodeDataUrl = await QRCode.toDataURL(scanUrl, {
+            width: 300,
+            margin: 2,
+            color: {
+              dark: '#000000',
+              light: '#ffffff'
+            }
+          });
+
+          // Send confirmation email with QR and reference
+          await sendRegistrationEmail(
+            registrationData.email,
+            registrationData.fullName,
+            uniqueId,
+            reference,
+            qrCodeDataUrl
+          );
+
+          // Return back to registration page with success
+          redirectUrl = `/?status=success&uniqueId=${uniqueId}`;
+        } else {
+          redirectUrl = `/?status=error&message=MissingRegistrationData`;
+        }
         break;
     }
 

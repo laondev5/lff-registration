@@ -26,11 +26,11 @@ body {
 
 /* ---- Card ---- */
 .bg-card {
-  background-color: rgba(255, 255, 255, 0.03);
+  background-color: #ffffff;
 }
 
 .text-card-foreground {
-  color: var(--foreground);
+  color: #1a1a1a;
 }
 
 /* ---- Form Inputs ---- */
@@ -38,16 +38,16 @@ body {
   width: 100%;
   padding: 0.75rem 1rem;
   border-radius: 0.5rem;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  color: white;
+  background: #f9fafb;
+  border: 1px solid #d1d5db;
+  color: #111827;
   outline: none;
   transition: border-color 0.2s, box-shadow 0.2s;
   font-size: 0.95rem;
 }
 
 .form-input::placeholder {
-  color: rgba(255, 255, 255, 0.3);
+  color: #9ca3af;
 }
 
 .form-input:focus {
@@ -62,23 +62,23 @@ body {
   gap: 0.5rem;
   padding: 0.5rem 1rem;
   border-radius: 0.5rem;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid #d1d5db;
+  background: #f9fafb;
   cursor: pointer;
   transition: background 0.2s, border-color 0.2s;
   font-size: 0.9rem;
-  color: rgba(255, 255, 255, 0.8);
+  color: #374151;
 }
 
 .radio-option:hover {
-  background: rgba(255, 255, 255, 0.08);
-  border-color: rgba(255, 255, 255, 0.2);
+  background: #f3f4f6;
+  border-color: #9ca3af;
 }
 
 .radio-option:has(input:checked) {
   background: rgba(251, 191, 36, 0.1);
   border-color: var(--primary);
-  color: white;
+  color: #111827;
 }
 
 /* ---- Buttons ---- */
@@ -106,14 +106,14 @@ body {
   display: inline-flex;
   align-items: center;
   padding: 0.625rem 1rem;
-  color: rgba(255, 255, 255, 0.5);
+  color: #6b7280;
   border-radius: 0.5rem;
   font-weight: 500;
   transition: color 0.2s;
 }
 
 .btn-ghost:hover {
-  color: white;
+  color: #111827;
 }
 
 /* ---- Color Swatches ---- */

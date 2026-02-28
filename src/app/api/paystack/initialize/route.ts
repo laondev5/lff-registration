@@ -33,12 +33,15 @@ export async function POST(request: Request) {
     if (!origin) {
       origin = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
     }
-    const callbackUrl = `${origin}/api/paystack/callback`;
+    const callbackUrl = `${origin}/api/paystack/callback?type=${type}`;
 
     let subaccount = '';
     switch (type) {
       case 'store':
         subaccount = process.env.PAYSTACK_STORE_SUBACCOUNT || '';
+        break;
+      case 'registration':
+        subaccount = process.env.PAYSTACK_REGISTRATION_SUBACCOUNT || '';
         break;
       default:
         return NextResponse.json(
@@ -52,6 +55,7 @@ export async function POST(request: Request) {
       amount: parsedAmount,
       callback_url: callbackUrl,
       subaccount,
+      type: type as 'registration' | 'store',
       metadata: {
         ...metadata,
         transaction_type: type,

@@ -57,7 +57,7 @@ export async function sendWelcomeEmail(to: string, name: string) {
     }
 }
 
-export async function sendRegistrationEmail(to: string, name: string, uniqueId: string, paymentRef: string) {
+export async function sendRegistrationEmail(to: string, name: string, uniqueId: string, paymentRef: string, qrCodeDataUrl?: string) {
     const transporter = getTransporter();
 
     const mailOptions = {
@@ -68,7 +68,7 @@ export async function sendRegistrationEmail(to: string, name: string, uniqueId: 
             <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eee; border-radius: 10px;">
                 <h1 style="color: #4F46E5; text-align: center;">Registration Confirmed! 🎉</h1>
                 <p>Dear <strong>${name}</strong>,</p>
-                <p>Your registration and payment for the <strong>Global Annual Conference 2026</strong> have been confirmed.</p>
+                <p>Your registration and payment for the <strong>Global Annual Convention 2026</strong> have been confirmed.</p>
                 
                 <div style="background-color: #4F46E5; color: white; padding: 20px; border-radius: 10px; margin: 20px 0; text-align: center;">
                     <p style="margin: 0 0 8px 0; font-size: 14px; opacity: 0.9;">Your Registration ID</p>
@@ -78,6 +78,14 @@ export async function sendRegistrationEmail(to: string, name: string, uniqueId: 
                 <div style="background-color: #f0fdf4; padding: 15px; border-radius: 8px; margin: 20px 0; border: 1px solid #bbf7d0;">
                     <p style="margin: 0; color: #166534;"><strong>Payment Reference:</strong> ${paymentRef}</p>
                 </div>
+                
+                ${qrCodeDataUrl ? `
+                <div style="text-align: center; margin: 30px 0; padding: 20px; border: 2px dashed #4F46E5; border-radius: 10px;">
+                    <h3 style="color: #333; margin-top: 0;">Your Entry Pass</h3>
+                    <p style="color: #666; font-size: 14px;">Present this QR code at the registration desk</p>
+                    <img src="cid:qrcode" alt="Registration QR Code" style="width: 200px; height: 200px; margin: 10px auto;" />
+                </div>
+                ` : ''}
 
                 <p>Please save your Registration ID. You may need it for:</p>
                 <ul>
@@ -94,7 +102,7 @@ export async function sendRegistrationEmail(to: string, name: string, uniqueId: 
                 </ul>
 
                 <p style="text-align: center; margin-top: 30px;">
-                    <a href="${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}" style="background-color: #4F46E5; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px;">Visit Portal</a>
+                    <a href="${process.env.NEXT_PUBLIC_BASE_URL || 'https://lffat40.livingfaithfoundation.org/store'}" style="background-color: #4F46E5; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px;">Visit Portal</a>
                 </p>
 
                 <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
@@ -104,6 +112,13 @@ export async function sendRegistrationEmail(to: string, name: string, uniqueId: 
                 </p>
             </div>
         `,
+        attachments: qrCodeDataUrl ? [
+            {
+                filename: 'registration-qr.png',
+                path: qrCodeDataUrl,
+                cid: 'qrcode'
+            }
+        ] : []
     };
 
     try {

@@ -5,14 +5,14 @@ export async function GET(request: NextRequest) {
     try {
         const type = request.nextUrl.searchParams.get('type');
 
-        if (!type || !['store', 'accommodation'].includes(type)) {
+        if (!type || !['store', 'accommodation', 'registration'].includes(type)) {
             return NextResponse.json(
-                { error: "Query param 'type' must be 'store' or 'accommodation'" },
+                { error: "Query param 'type' must be 'store', 'accommodation', or 'registration'" },
                 { status: 400 }
             );
         }
 
-        const account = await getPaymentAccountByType(type as 'store' | 'accommodation');
+        const account = await getPaymentAccountByType(type as 'store' | 'accommodation' | 'registration');
 
         if (!account) {
             return NextResponse.json({ account: null });
