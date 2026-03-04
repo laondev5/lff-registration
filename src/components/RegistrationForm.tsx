@@ -15,6 +15,7 @@ import {
   CreditCard,
   CheckCircle,
   UserPlus,
+  Home,
 } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { SuccessAnimation } from "./SuccessAnimation";
@@ -23,10 +24,8 @@ import { SuccessAnimation } from "./SuccessAnimation";
 const TITLES = [
   "Bro",
   "Sis",
-  "Jnr Dcn",
-  "Jnr Dcns",
-  "Snr Dcn",
-  "Snr Dcns",
+  "Deacon",
+  "Deaconess",
   "Pastor",
   "Elders",
   "Minister",
@@ -38,10 +37,8 @@ const TITLE_TO_REG: Record<
 > = {
   Bro: { type: "regular", label: "Regular & Exhorted", amount: 1000 },
   Sis: { type: "regular", label: "Regular & Exhorted", amount: 1000 },
-  "Jnr Dcn": { type: "deacon", label: "Deacon & Deaconess", amount: 2000 },
-  "Jnr Dcns": { type: "deacon", label: "Deacon & Deaconess", amount: 2000 },
-  "Snr Dcn": { type: "deacon", label: "Deacon & Deaconess", amount: 2000 },
-  "Snr Dcns": { type: "deacon", label: "Deacon & Deaconess", amount: 2000 },
+  Deacon: { type: "deacon", label: "Deacon & Deaconess", amount: 2000 },
+  Deaconess: { type: "deacon", label: "Deacon & Deaconess", amount: 2000 },
   Pastor: {
     type: "elders_ministers_pastors",
     label: "Elders, Ministers & Pastors",
@@ -99,6 +96,7 @@ const stepLabels = [
   { icon: User, label: "Personal" },
   { icon: Church, label: "Church" },
   { icon: Calendar, label: "Preferences" },
+  { icon: Home, label: "Accommodation" },
   { icon: CreditCard, label: "Confirm & Pay" },
 ];
 
@@ -111,14 +109,31 @@ export function RegistrationForm() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isConventionPartner, setIsConventionPartner] = useState(false);
   const [paymentAccount, setPaymentAccount] = useState<any>(null);
+  const [accommodations, setAccommodations] = useState<any[]>([]);
+  const [isLoadingAccommodations, setIsLoadingAccommodations] = useState(false);
+  const [conventionPartnerAmount, setConventionPartnerAmount] =
+    useState<string>("10000");
 
   // Fetch registration account script
   useEffect(() => {
-    if (currentStep === 3) {
+    if (currentStep === 4) {
       fetch("/api/payment-account?type=registration")
         .then((res) => res.json())
         .then((data) => setPaymentAccount(data.account))
         .catch((err) => console.error("Failed to fetch account:", err));
+    }
+  }, [currentStep]);
+
+  // Fetch accommodations
+  useEffect(() => {
+    if (currentStep === 3) {
+      setIsLoadingAccommodations(true);
+      fetch("/api/accommodations")
+        .then((res) => res.json())
+        .then((resp) => {
+          if (resp.success) setAccommodations(resp.accommodations || []);
+        })
+        .finally(() => setIsLoadingAccommodations(false));
     }
   }, [currentStep]);
 
@@ -128,15 +143,21 @@ export function RegistrationForm() {
     const uniqueId = searchParams.get("uniqueId");
     if (status === "success" && uniqueId) {
       updateData({ uniqueId });
-      setStep(4); // Go to success screen
+      setStep(5); // Go to success screen
     }
   }, [searchParams, setStep, updateData]);
 
   // Determine registration info from title
   const registrationInfo = useMemo(() => {
-    if (isConventionPartner) return CONVENTION_PARTNER;
+    if (isConventionPartner) {
+      const amt = parseFloat(conventionPartnerAmount.replace(/[^0-9.-]+/g, ""));
+      return {
+        ...CONVENTION_PARTNER,
+        amount: isNaN(amt) || amt < 10000 ? 10000 : amt,
+      };
+    }
     return TITLE_TO_REG[data.title] || null;
-  }, [data.title, isConventionPartner]);
+  }, [data.title, isConventionPartner, conventionPartnerAmount]);
 
   // ─── Step 0: Personal Info Form ─────────────────────
   const {
@@ -202,10 +223,10 @@ export function RegistrationForm() {
 
   const onNextPreferences = (formData: Preferences) => {
     updateData(formData);
-    nextStep(); // Go to confirmation + pay step (step 3)
+    nextStep(); // Go to Accommodation step (step 3)
   };
 
-  // Step 3: Manual Payment Submission
+  // Step 4: Manual Payment Submission
   const handleManualRegistration = async () => {
     if (!registrationInfo) {
       alert("Please go back and select a title.");
@@ -215,7 +236,17 @@ export function RegistrationForm() {
     setIsSubmitting(true);
 
     const regType = registrationInfo.type;
-    const amount = registrationInfo.amount;
+    const regAmount = registrationInfo.amount;
+
+    let totalAmount = regAmount;
+    if (data.needsAccommodation && data.accommodationPrice) {
+      const accPriceNum = parseFloat(
+        data.accommodationPrice.replace(/[^0-9.-]+/g, ""),
+      );
+      if (!isNaN(accPriceNum)) {
+        totalAmount += accPriceNum;
+      }
+    }
 
     // Build the full registration data
     const registrationData = {
@@ -235,8 +266,12 @@ export function RegistrationForm() {
       mealCollection: data.mealCollection,
       prayerRequest: data.prayerRequest,
       needsAccommodation: data.needsAccommodation,
+      accommodationType: data.needsAccommodation ? data.accommodationType : "",
+      accommodationPrice: data.needsAccommodation
+        ? data.accommodationPrice
+        : "",
       registrationType: regType,
-      registrationAmount: amount.toLocaleString(),
+      registrationAmount: regAmount.toLocaleString(),
     };
 
     try {
@@ -245,7 +280,7 @@ export function RegistrationForm() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           email: data.email,
-          amount: amount,
+          amount: totalAmount,
           type: "registration",
           metadata: {
             registrationData,
@@ -298,11 +333,11 @@ export function RegistrationForm() {
 
   // ─── Rendering ─────────────────────────────────────
 
-  // For steps 4 & 5 (success + accommodation), hide the stepper
-  const showStepper = currentStep < 4;
+  // For steps 5 (success), hide the stepper
+  const showStepper = currentStep < 5;
 
   return (
-    <div className="bg-card text-card-foreground p-6 md:p-8 rounded-xl w-full min-h-[450px] relative overflow-hidden shadow-lg border border-gray-200">
+    <div className="bg-black/60 text-white p-6 md:p-8 rounded-xl w-full min-h-[450px] relative overflow-hidden shadow-2xl border border-white/10 backdrop-blur-md">
       {/* ─── Progress Stepper ─────────────── */}
       {showStepper && (
         <div className="mb-8">
@@ -310,21 +345,24 @@ export function RegistrationForm() {
             {stepLabels.map((step, i) => {
               const Icon = step.icon;
               return (
-                <div key={i} className="z-10 flex flex-col items-center w-1/4">
+                <div
+                  key={i}
+                  className={`z-10 flex flex-col items-center flex-1`}
+                >
                   <div
                     className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold border-2 transition-all duration-300 ${
                       currentStep > i
                         ? "bg-green-500 text-white border-green-500"
                         : currentStep === i
                           ? "bg-primary text-primary-foreground border-primary shadow-lg shadow-primary/30"
-                          : "bg-white border-gray-300 text-gray-400"
+                          : "bg-white/5 border-white/20 text-gray-400"
                     }`}
                   >
                     {currentStep > i ? "✓" : <Icon className="w-4 h-4" />}
                   </div>
                   <span
                     className={`mt-2 text-xs font-medium ${
-                      currentStep >= i ? "text-gray-900" : "text-gray-400"
+                      currentStep >= i ? "text-white" : "text-gray-400"
                     }`}
                   >
                     {step.label}
@@ -336,7 +374,7 @@ export function RegistrationForm() {
             <div className="absolute top-5 left-[12.5%] right-[12.5%] h-0.5 bg-gray-200 -z-0">
               <div
                 className="h-full bg-gradient-to-r from-green-500 to-primary transition-all duration-500 ease-out"
-                style={{ width: `${(currentStep / 3) * 100}%` }}
+                style={{ width: `${(currentStep / 4) * 100}%` }}
               />
             </div>
           </div>
@@ -350,14 +388,14 @@ export function RegistrationForm() {
           className="space-y-5 animate-in fade-in slide-in-from-right-4 duration-300"
         >
           <div>
-            <h3 className="text-xl font-bold text-gray-900 mb-1">
+            <h3 className="text-xl font-bold text-white mb-1">
               Personal Information
             </h3>
-            <p className="text-gray-500 text-sm">Tell us about yourself</p>
+            <p className="text-gray-400 text-sm">Tell us about yourself</p>
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-sm font-medium text-gray-700">
+            <label className="text-sm font-medium text-gray-300">
               Title <span className="text-red-400">*</span>
             </label>
             <select {...regPersonal("title")} className="form-input">
@@ -376,7 +414,7 @@ export function RegistrationForm() {
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-sm font-medium text-gray-700">
+            <label className="text-sm font-medium text-gray-300">
               Full Name <span className="text-red-400">*</span>
             </label>
             <input
@@ -392,7 +430,7 @@ export function RegistrationForm() {
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-sm font-medium text-gray-700">
+            <label className="text-sm font-medium text-gray-300">
               Email Address <span className="text-red-400">*</span>
             </label>
             <input
@@ -409,7 +447,7 @@ export function RegistrationForm() {
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-sm font-medium text-gray-700">
+            <label className="text-sm font-medium text-gray-300">
               Phone Number <span className="text-red-400">*</span>
             </label>
             <div className="relative">
@@ -427,7 +465,7 @@ export function RegistrationForm() {
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-sm font-medium text-gray-700">
+            <label className="text-sm font-medium text-gray-300">
               WhatsApp Number <span className="text-red-400">*</span>
             </label>
             <div className="relative">
@@ -445,7 +483,7 @@ export function RegistrationForm() {
           </div>
 
           <div className="space-y-2">
-            <label className="text-sm font-medium text-gray-700">
+            <label className="text-sm font-medium text-gray-300">
               Gender <span className="text-red-400">*</span>
             </label>
             <div className="flex gap-4">
@@ -490,16 +528,16 @@ export function RegistrationForm() {
           className="space-y-5 animate-in fade-in slide-in-from-right-4 duration-300"
         >
           <div>
-            <h3 className="text-xl font-bold text-gray-900 mb-1">
+            <h3 className="text-xl font-bold text-white mb-1">
               Church & Location
             </h3>
-            <p className="text-gray-500 text-sm">
+            <p className="text-gray-400 text-sm">
               Your church affiliation and residence
             </p>
           </div>
 
           <div className="space-y-2">
-            <label className="text-sm font-medium text-gray-700">
+            <label className="text-sm font-medium text-gray-300">
               Are you a member of the Living Faith Foundation?{" "}
               <span className="text-red-400">*</span>
             </label>
@@ -531,7 +569,7 @@ export function RegistrationForm() {
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-sm font-medium text-gray-700">
+            <label className="text-sm font-medium text-gray-300">
               {isLFFMember === "yes"
                 ? "State church name, District and State"
                 : "State your church name"}{" "}
@@ -555,7 +593,7 @@ export function RegistrationForm() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-1.5">
-              <label className="text-sm font-medium text-gray-700">
+              <label className="text-sm font-medium text-gray-300">
                 Area/District <span className="text-red-400">*</span>
               </label>
               <input
@@ -570,7 +608,7 @@ export function RegistrationForm() {
               )}
             </div>
             <div className="space-y-1.5">
-              <label className="text-sm font-medium text-gray-700">
+              <label className="text-sm font-medium text-gray-300">
                 State <span className="text-red-400">*</span>
               </label>
               <input
@@ -587,7 +625,7 @@ export function RegistrationForm() {
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-sm font-medium text-gray-700">
+            <label className="text-sm font-medium text-gray-300">
               Country <span className="text-red-400">*</span>
             </label>
             <input
@@ -620,16 +658,16 @@ export function RegistrationForm() {
           className="space-y-5 animate-in fade-in slide-in-from-right-4 duration-300"
         >
           <div>
-            <h3 className="text-xl font-bold text-gray-900 mb-1">
+            <h3 className="text-xl font-bold text-white mb-1">
               Event Preferences
             </h3>
-            <p className="text-gray-500 text-sm">
+            <p className="text-gray-400 text-sm">
               How would you like to attend GAC 2026?
             </p>
           </div>
 
           <div className="space-y-2">
-            <label className="text-sm font-medium text-gray-700">
+            <label className="text-sm font-medium text-gray-300">
               How do you like to attend GAC 2026?{" "}
               <span className="text-red-400">*</span>
             </label>
@@ -661,7 +699,7 @@ export function RegistrationForm() {
           </div>
 
           <div className="space-y-2">
-            <label className="text-sm font-medium text-gray-700">
+            <label className="text-sm font-medium text-gray-300">
               Would you like to follow our buses from your Area/District?{" "}
               <span className="text-red-400">*</span>
             </label>
@@ -693,7 +731,7 @@ export function RegistrationForm() {
           </div>
 
           <div className="space-y-2">
-            <label className="text-sm font-medium text-gray-700">
+            <label className="text-sm font-medium text-gray-300">
               Where will you like to collect your meal?{" "}
               <span className="text-red-400">*</span>
             </label>
@@ -724,7 +762,7 @@ export function RegistrationForm() {
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-sm font-medium text-gray-700">
+            <label className="text-sm font-medium text-gray-300">
               What do you want God to do for you at GAC 2026?
             </label>
             <textarea
@@ -745,59 +783,158 @@ export function RegistrationForm() {
         </form>
       )}
 
-      {/* ─── Step 3: Confirmation & Pay ──────── */}
+      {/* ─── Step 3: Accommodation ─────── */}
       {currentStep === 3 && (
+        <div className="space-y-5 animate-in fade-in slide-in-from-right-4 duration-300">
+          <div>
+            <h3 className="text-xl font-bold text-white mb-1">Accommodation</h3>
+            <p className="text-gray-400 text-sm">
+              Would you like to book accommodation?
+            </p>
+          </div>
+
+          {isLoadingAccommodations ? (
+            <div className="flex justify-center py-8">
+              <Loader2 className="w-8 h-8 animate-spin text-primary" />
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {accommodations.map((acc) => (
+                <div
+                  key={acc.id}
+                  onClick={() => {
+                    if (acc.isFullyBooked) return;
+                    updateData({
+                      needsAccommodation: true,
+                      accommodationType: acc.title,
+                      accommodationPrice: acc.price,
+                      accommodationId: acc.id,
+                    });
+                  }}
+                  className={`border rounded-xl p-4 cursor-pointer relative overflow-hidden transition-all ${
+                    data.accommodationId === acc.id
+                      ? "border-primary bg-primary/5 ring-2 ring-primary/20"
+                      : "border-white/10 hover:border-primary/50"
+                  } ${acc.isFullyBooked ? "opacity-50 cursor-not-allowed" : ""}`}
+                >
+                  {acc.isFullyBooked && (
+                    <div className="absolute inset-0 bg-black/50 flex flex-col items-center justify-center text-white z-10 backdrop-blur-[2px]">
+                      <span className="font-bold text-lg tracking-wider bg-red-600 px-3 py-1 rounded">
+                        FULLY BOOKED
+                      </span>
+                    </div>
+                  )}
+                  {acc.imageUrl && !acc.imageUrl.includes("placehold.co") && (
+                    <div className="w-full h-32 bg-white/10 rounded-lg mb-3 overflow-hidden">
+                      <img
+                        src={acc.imageUrl}
+                        alt={acc.title}
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                  )}
+                  <h4 className="font-bold text-white">{acc.title}</h4>
+                  <p className="text-primary font-semibold mt-1">{acc.price}</p>
+                  <p className="text-xs text-gray-400 mt-2 line-clamp-2">
+                    {acc.description}
+                  </p>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div className="flex items-center justify-center pt-2">
+            <button
+              type="button"
+              onClick={() => {
+                updateData({
+                  needsAccommodation: false,
+                  accommodationType: "",
+                  accommodationPrice: "",
+                  accommodationId: "",
+                });
+                nextStep();
+              }}
+              className="text-gray-400 text-sm hover:text-white underline"
+            >
+              Skip Accommodation & Continue
+            </button>
+          </div>
+
+          <div className="pt-4 flex justify-between">
+            <button type="button" onClick={prevStep} className="btn-ghost">
+              <ChevronLeft className="w-4 h-4 mr-2" /> Back
+            </button>
+            <button
+              type="button"
+              onClick={() => nextStep()}
+              className="btn-primary"
+            >
+              Next <ChevronRight className="w-4 h-4 ml-2" />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ─── Step 4: Confirmation & Pay ──────── */}
+      {currentStep === 4 && (
         <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
           <div>
-            <h3 className="text-xl font-bold text-gray-900 mb-1">
-              Confirm & Pay
-            </h3>
-            <p className="text-gray-500 text-sm">
+            <h3 className="text-xl font-bold text-white mb-1">Confirm & Pay</h3>
+            <p className="text-gray-400 text-sm">
               Review your details and complete payment to register.
             </p>
           </div>
 
           {/* Summary Card */}
-          <div className="bg-gray-50 border border-gray-200 rounded-xl p-5 space-y-3 text-sm">
+          <div className="bg-white/5 border border-white/10 rounded-xl p-5 space-y-3 text-sm">
             <div className="flex justify-between">
-              <span className="text-gray-500">Name:</span>
-              <span className="text-gray-900 font-medium">
+              <span className="text-gray-400">Name:</span>
+              <span className="text-white font-medium">
                 {data.title} {data.fullName}
               </span>
             </div>
             <div className="flex justify-between">
-              <span className="text-gray-500">Email:</span>
-              <span className="text-gray-900">{data.email}</span>
+              <span className="text-gray-400">Email:</span>
+              <span className="text-white">{data.email}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-gray-500">Phone:</span>
-              <span className="text-gray-900">{data.phoneNumber}</span>
+              <span className="text-gray-400">Phone:</span>
+              <span className="text-white">{data.phoneNumber}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-gray-500">Church:</span>
-              <span className="text-gray-900">{data.churchDetails}</span>
+              <span className="text-gray-400">Church:</span>
+              <span className="text-white">{data.churchDetails}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-gray-500">Attendance:</span>
-              <span className="text-gray-900 capitalize">
+              <span className="text-gray-400">Attendance:</span>
+              <span className="text-white capitalize">
                 {data.attendanceType}
               </span>
             </div>
+            {data.needsAccommodation && (
+              <div className="flex justify-between border-t border-white/10 pt-2 mt-2">
+                <span className="text-gray-400">Accommodation:</span>
+                <span className="text-white font-medium">
+                  {data.accommodationType} ({data.accommodationPrice})
+                </span>
+              </div>
+            )}
           </div>
 
           {/* Registration Type (auto-determined) */}
-          <div className="border border-gray-200 rounded-xl p-5 bg-gray-50">
-            <h4 className="text-sm font-semibold text-gray-700 mb-3">
+          <div className="border border-white/10 rounded-xl p-5 bg-white/5">
+            <h4 className="text-sm font-semibold text-gray-300 mb-3">
               Registration Category
             </h4>
 
             {registrationInfo && !isConventionPartner && (
               <div className="flex items-center justify-between p-4 rounded-lg border-2 border-primary bg-primary/10 mb-3">
                 <div>
-                  <p className="text-gray-900 font-medium">
+                  <p className="text-white font-medium">
                     {registrationInfo.label}
                   </p>
-                  <p className="text-gray-500 text-xs">
+                  <p className="text-gray-400 text-xs">
                     Based on your title: {data.title}
                   </p>
                 </div>
@@ -810,10 +947,10 @@ export function RegistrationForm() {
             {isConventionPartner && (
               <div className="flex items-center justify-between p-4 rounded-lg border-2 border-primary bg-primary/10 mb-3">
                 <div>
-                  <p className="text-gray-900 font-medium">
+                  <p className="text-white font-medium">
                     {CONVENTION_PARTNER.label}
                   </p>
-                  <p className="text-gray-500 text-xs">
+                  <p className="text-gray-400 text-xs">
                     Special partnership contribution
                   </p>
                 </div>
@@ -823,7 +960,7 @@ export function RegistrationForm() {
               </div>
             )}
 
-            <label className="flex items-center gap-3 cursor-pointer p-3 rounded-lg border border-gray-200 hover:bg-gray-100 transition-colors">
+            <label className="flex items-center gap-3 cursor-pointer p-3 rounded-lg border border-white/10 hover:bg-white/10 transition-colors">
               <input
                 type="checkbox"
                 checked={isConventionPartner}
@@ -831,35 +968,56 @@ export function RegistrationForm() {
                 className="accent-primary w-4 h-4"
               />
               <div>
-                <span className="text-gray-900 text-sm font-medium">
+                <span className="text-white text-sm font-medium">
                   Register as Convention Partner instead
                 </span>
-                <p className="text-gray-500 text-xs">₦10,000 and above</p>
+                <p className="text-gray-400 text-xs">₦10,000 and above</p>
               </div>
             </label>
+
+            {isConventionPartner && (
+              <div className="mt-4 space-y-1.5 animate-in fade-in slide-in-from-top-2 duration-300">
+                <label className="text-sm font-medium text-gray-300">
+                  Contribution Amount (₦){" "}
+                  <span className="text-red-400">*</span>
+                </label>
+                <input
+                  type="number"
+                  min="10000"
+                  step="1000"
+                  value={conventionPartnerAmount}
+                  onChange={(e) => setConventionPartnerAmount(e.target.value)}
+                  className="form-input"
+                  placeholder="Enter amount (Min: 10,000)"
+                />
+                <p className="text-xs text-gray-400">
+                  Thank you for partnering with us to make GAC 2026 a success.
+                </p>
+              </div>
+            )}
           </div>
 
           {/* Pay Button */}
           {/* Payment Instructions & Submit */}
           <div className="bg-primary/5 border border-primary/20 rounded-xl p-5 space-y-4">
-            <h4 className="font-bold text-gray-900 flex items-center gap-2">
+            <h4 className="font-bold text-white flex items-center gap-2">
               <CreditCard className="w-5 h-5 text-primary" /> Payment
               Instructions
             </h4>
 
             {paymentAccount ? (
-              <div className="bg-gray-50 p-4 rounded-lg space-y-2">
-                <p className="text-gray-500 text-sm">
+              <div className="bg-white/5 p-4 rounded-lg space-y-2">
+                <p className="text-gray-400 text-sm">
                   Please transfer the fee to:
                 </p>
                 <div>
-                  <p className="text-xl font-bold text-gray-900 tracking-widest">
+                  <p className="text-xl font-bold text-white tracking-widest">
                     {paymentAccount.accountNumber}
                   </p>
-                  <p className="text-gray-900 font-medium">
+                  <p className="text-white font-medium">
                     {paymentAccount.bankName}
                   </p>
-                  <p className="text-sm text-gray-500">
+                  <p className="text-sm text-gray-400">
                     {paymentAccount.accountName}
                   </p>
                 </div>
@@ -897,22 +1055,22 @@ export function RegistrationForm() {
         </div>
       )}
 
-      {/* ─── Step 4: Success (after payment) ──────── */}
-      {currentStep === 4 && (
+      {/* ─── Step 5: Success (after payment) ──────── */}
+      {currentStep === 5 && (
         <div className="space-y-6 animate-in fade-in duration-500 py-4">
           <SuccessAnimation
             name={data.fullName}
             uniqueId={data.uniqueId || "N/A"}
           />
 
-          <div className="border border-gray-200 rounded-xl p-6 bg-gray-50 text-center space-y-3">
+          <div className="border border-white/10 rounded-xl p-6 bg-white/5 text-center space-y-3">
             <div className="w-16 h-16 bg-green-500/20 rounded-full flex items-center justify-center mx-auto">
               <CheckCircle className="w-8 h-8 text-green-500" />
             </div>
-            <h4 className="text-lg font-bold text-gray-900">
+            <h4 className="text-lg font-bold text-white">
               Registration Received!
             </h4>
-            <p className="text-gray-500 text-sm">
+            <p className="text-gray-400 text-sm">
               Your registration has been received and is{" "}
               <strong>Pending Confirmation</strong>.
               <br />A confirmation email will be sent to{" "}
@@ -931,53 +1089,18 @@ export function RegistrationForm() {
             )}
           </div>
 
-          <button
-            onClick={() => nextStep()}
-            className="w-full btn-primary py-4 text-lg font-bold"
-          >
-            Continue <ChevronRight className="w-5 h-5 ml-2" />
-          </button>
-        </div>
-      )}
-
-      {/* ─── Step 5: Accommodation Question ── */}
-      {currentStep === 5 && (
-        <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-300 py-8">
-          <div className="text-center">
-            <h3 className="text-2xl md:text-3xl font-bold text-gray-900 mb-3">
-              One More Thing...
-            </h3>
-            <p className="text-gray-500 text-lg max-w-md mx-auto">
-              Would you like to book an accommodation with us for GAC 2026?
-            </p>
-          </div>
-
-          <div className="flex flex-col gap-4 max-w-lg mx-auto">
+          <div className="flex flex-col gap-3">
             <button
-              onClick={() => handleAccommodationChoice(true, "book")}
-              disabled={!!submittingType}
-              className="w-full bg-primary text-primary-foreground px-8 py-4 rounded-xl font-bold text-lg hover:scale-[1.03] transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg shadow-primary/20"
+              onClick={() =>
+                router.push(`/join-department?id=${data.uniqueId}`)
+              }
+              className="w-full btn-primary py-4 text-lg font-bold flex items-center justify-center"
             >
-              {submittingType === "book" ? (
-                <Loader2 className="animate-spin w-5 h-5" />
-              ) : null}
-              Yes, Book Accommodation
+              Continue <ChevronRight className="w-5 h-5 ml-2" />
             </button>
-
-            <button
-              onClick={() => handleAccommodationChoice(false, "skip")}
-              disabled={!!submittingType}
-              className="w-full bg-gray-50 border border-gray-200 text-gray-700 px-8 py-4 rounded-xl font-bold text-lg hover:bg-gray-100 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-            >
-              {submittingType === "skip" ? (
-                <Loader2 className="animate-spin w-5 h-5" />
-              ) : null}
-              No, Thank You
-            </button>
-
             <button
               onClick={handleRegisterAnother}
-              className="w-full bg-gray-50 border border-dashed border-gray-300 text-gray-600 px-8 py-4 rounded-xl font-bold text-lg hover:bg-gray-100 hover:text-gray-900 transition-all flex items-center justify-center gap-2"
+              className="w-full bg-white/5 border border-dashed border-white/20 text-gray-300 px-8 py-4 rounded-xl font-bold text-lg hover:bg-white/10 hover:text-white transition-all flex items-center justify-center gap-2"
             >
               <UserPlus className="w-5 h-5" />
               Register Another Person

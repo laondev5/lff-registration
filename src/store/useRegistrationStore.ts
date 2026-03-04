@@ -27,9 +27,9 @@ export interface RegistrationData {
     registrationType: string;
     registrationAmount: string;
 
-    // Accommodation
     needsAccommodation: boolean;
     accommodationType?: string;
+    accommodationPrice?: string;
     accommodationId?: string;
     duration?: string;
 
@@ -67,13 +67,14 @@ const initialData: RegistrationData = {
     registrationType: '',
     registrationAmount: '',
     needsAccommodation: false,
+    accommodationPrice: '',
 };
 
 export const useRegistrationStore = create<RegistrationStore>()(
     persist(
         (set) => ({
             currentStep: 0,
-            totalSteps: 6, // 0: Personal, 1: Church/Location, 2: Preferences, 3: Registration Type, 4: Success/Payment, 5: Accommodation Question
+            totalSteps: 5, // 0: Personal, 1: Church/Location, 2: Preferences, 3: Accommodation, 4: Confirm & Pay
             data: { ...initialData },
             setStep: (step) => set({ currentStep: step }),
             nextStep: () => set((state) => ({ currentStep: Math.min(state.currentStep + 1, state.totalSteps - 1) })),

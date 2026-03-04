@@ -92,9 +92,9 @@ export async function appendRegistration(data: any) {
         data.registrationAmount || '',
         '',   // Registration Payment Proof
         data.needsAccommodation ? 'Yes' : 'No',
-        '',   // Accommodation Type (updated later if they book)
-        '',   // Accommodation Price
-        '',   // Duration
+        data.accommodationType || '',   // Accommodation Type
+        data.accommodationPrice || '',  // Accommodation Price
+        data.duration || '',   // Duration
         '',   // Accommodation Payment Proof
         '',   // Department Status (New / Member / Just Member)
         '',   // Department
@@ -451,6 +451,28 @@ export async function getAccommodations() {
         console.warn("Accommodations sheet might not exist yet or is empty.", error);
         return [];
     }
+}
+
+export async function getAccommodationsWithAvailability() {
+    const accommodations = await getAccommodations();
+    const users = await getUsers();
+    
+    return accommodations.map(acc => {
+        // Count how many users have booked this accommodation
+        // Assuming user.accommodationType matches acc.id or acc.title. We should probably match by title if that's what's saved.
+        // Let's match by title since that's what usually goes into accommodationType
+        const bookedSlots = users.filter(user => 
+            user.needsAccommodation === 'Yes' && user.accommodationType === acc.title
+        ).length;
+        
+        const totalSlots = parseInt(acc.slots || '0', 10);
+        
+        return {
+            ...acc,
+            bookedSlots,
+            isFullyBooked: totalSlots > 0 && bookedSlots >= totalSlots
+        };
+    });
 }
 
 export async function addAccommodation(data: any) {
