@@ -789,77 +789,120 @@ export function RegistrationForm() {
           <div>
             <h3 className="text-xl font-bold text-white mb-1">Accommodation</h3>
             <p className="text-gray-400 text-sm">
-              Would you like to book accommodation?
+              Do you have your own personal accommodation?
             </p>
           </div>
 
-          {isLoadingAccommodations ? (
-            <div className="flex justify-center py-8">
-              <Loader2 className="w-8 h-8 animate-spin text-primary" />
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {accommodations.map((acc) => (
-                <div
-                  key={acc.id}
-                  onClick={() => {
-                    if (acc.isFullyBooked) return;
+          <div className="space-y-2">
+            <div className="flex gap-4">
+              <label className="radio-option">
+                <input
+                  type="radio"
+                  name="personalAccommodation"
+                  value="yes"
+                  checked={data.hasPersonalAccommodation === "yes"}
+                  onChange={() =>
                     updateData({
-                      needsAccommodation: true,
-                      accommodationType: acc.title,
-                      accommodationPrice: acc.price,
-                      accommodationId: acc.id,
-                    });
-                  }}
-                  className={`border rounded-xl p-4 cursor-pointer relative overflow-hidden transition-all ${
-                    data.accommodationId === acc.id
-                      ? "border-primary bg-primary/5 ring-2 ring-primary/20"
-                      : "border-white/10 hover:border-primary/50"
-                  } ${acc.isFullyBooked ? "opacity-50 cursor-not-allowed" : ""}`}
-                >
-                  {acc.isFullyBooked && (
-                    <div className="absolute inset-0 bg-black/50 flex flex-col items-center justify-center text-white z-10 backdrop-blur-[2px]">
-                      <span className="font-bold text-lg tracking-wider bg-red-600 px-3 py-1 rounded">
-                        FULLY BOOKED
-                      </span>
-                    </div>
-                  )}
-                  {acc.imageUrl && !acc.imageUrl.includes("placehold.co") && (
-                    <div className="w-full h-32 bg-white/10 rounded-lg mb-3 overflow-hidden">
-                      <img
-                        src={acc.imageUrl}
-                        alt={acc.title}
-                        className="w-full h-full object-cover"
-                      />
-                    </div>
-                  )}
-                  <h4 className="font-bold text-white">{acc.title}</h4>
-                  <p className="text-primary font-semibold mt-1">{acc.price}</p>
-                  <p className="text-xs text-gray-400 mt-2 line-clamp-2">
-                    {acc.description}
-                  </p>
-                </div>
-              ))}
+                      hasPersonalAccommodation: "yes",
+                      needsAccommodation: false,
+                      accommodationType: "",
+                      accommodationPrice: "",
+                      accommodationId: "",
+                    })
+                  }
+                  className="accent-primary w-4 h-4"
+                />
+                <span>Yes</span>
+              </label>
+              <label className="radio-option">
+                <input
+                  type="radio"
+                  name="personalAccommodation"
+                  value="no"
+                  checked={data.hasPersonalAccommodation === "no"}
+                  onChange={() =>
+                    updateData({ hasPersonalAccommodation: "no" })
+                  }
+                  className="accent-primary w-4 h-4"
+                />
+                <span>No</span>
+              </label>
             </div>
-          )}
-
-          <div className="flex items-center justify-center pt-2">
-            <button
-              type="button"
-              onClick={() => {
-                updateData({
-                  needsAccommodation: false,
-                  accommodationType: "",
-                  accommodationPrice: "",
-                  accommodationId: "",
-                });
-                nextStep();
-              }}
-              className="text-gray-400 text-sm hover:text-white underline"
-            >
-              Skip Accommodation & Continue
-            </button>
           </div>
+
+          {data.hasPersonalAccommodation === "no" &&
+            (isLoadingAccommodations ? (
+              <div className="flex justify-center py-8">
+                <Loader2 className="w-8 h-8 animate-spin text-primary" />
+              </div>
+            ) : (
+              <>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                  {accommodations.map((acc) => (
+                    <div
+                      key={acc.id}
+                      onClick={() => {
+                        if (acc.isFullyBooked) return;
+                        updateData({
+                          needsAccommodation: true,
+                          accommodationType: acc.title,
+                          accommodationPrice: acc.price,
+                          accommodationId: acc.id,
+                        });
+                      }}
+                      className={`border rounded-xl p-4 cursor-pointer relative overflow-hidden transition-all ${
+                        data.accommodationId === acc.id
+                          ? "border-primary bg-primary/5 ring-2 ring-primary/20"
+                          : "border-white/10 hover:border-primary/50"
+                      } ${acc.isFullyBooked ? "opacity-50 cursor-not-allowed" : ""}`}
+                    >
+                      {acc.isFullyBooked && (
+                        <div className="absolute inset-0 bg-black/50 flex flex-col items-center justify-center text-white z-10 backdrop-blur-[2px]">
+                          <span className="font-bold text-lg tracking-wider bg-red-600 px-3 py-1 rounded">
+                            FULLY BOOKED
+                          </span>
+                        </div>
+                      )}
+                      {acc.imageUrl &&
+                        !acc.imageUrl.includes("placehold.co") && (
+                          <div className="w-full h-32 bg-white/10 rounded-lg mb-3 overflow-hidden">
+                            <img
+                              src={acc.imageUrl}
+                              alt={acc.title}
+                              className="w-full h-full object-cover"
+                            />
+                          </div>
+                        )}
+                      <h4 className="font-bold text-white">{acc.title}</h4>
+                      <p className="text-primary font-semibold mt-1">
+                        {acc.price}
+                      </p>
+                      <p className="text-xs text-gray-400 mt-2 line-clamp-2">
+                        {acc.description}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="flex items-center justify-center pt-2 mt-4">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      updateData({
+                        needsAccommodation: false,
+                        accommodationType: "",
+                        accommodationPrice: "",
+                        accommodationId: "",
+                      });
+                      nextStep();
+                    }}
+                    className="text-gray-400 text-sm hover:text-white underline"
+                  >
+                    Skip Accommodation & Continue
+                  </button>
+                </div>
+              </>
+            ))}
 
           <div className="pt-4 flex justify-between">
             <button type="button" onClick={prevStep} className="btn-ghost">
@@ -867,7 +910,19 @@ export function RegistrationForm() {
             </button>
             <button
               type="button"
-              onClick={() => nextStep()}
+              disabled={data.hasPersonalAccommodation === ""}
+              onClick={() => {
+                if (
+                  data.hasPersonalAccommodation === "no" &&
+                  !data.accommodationId
+                ) {
+                  alert(
+                    "Please select an accommodation or choose 'Skip Accommodation & Continue'",
+                  );
+                  return;
+                }
+                nextStep();
+              }}
               className="btn-primary"
             >
               Next <ChevronRight className="w-4 h-4 ml-2" />

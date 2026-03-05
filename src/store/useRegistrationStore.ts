@@ -32,6 +32,7 @@ export interface RegistrationData {
     accommodationPrice?: string;
     accommodationId?: string;
     duration?: string;
+    hasPersonalAccommodation: 'yes' | 'no' | '';
 
     // Generated
     uniqueId?: string;
@@ -68,6 +69,7 @@ const initialData: RegistrationData = {
     registrationAmount: '',
     needsAccommodation: false,
     accommodationPrice: '',
+    hasPersonalAccommodation: '',
 };
 
 export const useRegistrationStore = create<RegistrationStore>()(
