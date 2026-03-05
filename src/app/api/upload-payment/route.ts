@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { updatePaymentProof } from '@/lib/googleSheets';
+import { updatePaymentProof } from '@/lib/registrationService';
 import { uploadToCloudinary } from '@/lib/cloudinary';
 
 export async function POST(req: NextRequest) {

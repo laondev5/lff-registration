@@ -1,4 +1,4 @@
-import { getUsers } from "@/lib/googleSheets";
+import { getUsers } from "@/lib/registrationService";
 import UsersTable from "./UsersTable";
 
 export const dynamic = "force-dynamic";

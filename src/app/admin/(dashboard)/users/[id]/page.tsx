@@ -1,4 +1,4 @@
-import { getUserById } from "@/lib/googleSheets";
+import { getUserById } from "@/lib/registrationService";
 import Link from "next/link";
 
 export default async function UserDetailsPage({

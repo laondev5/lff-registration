@@ -4,7 +4,7 @@ import {
     addAccommodation,
     updateAccommodationListing,
     deleteAccommodationListing
-} from '@/lib/googleSheets';
+} from '@/lib/accommodationService';
 import { uploadToCloudinary, deleteFromCloudinary } from '@/lib/cloudinary';
 import { isAuthenticated, unauthorizedResponse } from '@/lib/adminAuth';
 

@@ -1,6 +1,6 @@
 
 import { NextResponse } from 'next/server';
-import { getAccommodationsWithAvailability } from '@/lib/googleSheets';
+import { getAccommodationsWithAvailability } from '@/lib/accommodationService';
 
 export async function GET() {
     try {

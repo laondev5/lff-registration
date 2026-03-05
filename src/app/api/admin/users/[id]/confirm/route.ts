@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { updateRegistrationStatus, getUserById } from '@/lib/googleSheets';
+import { updateRegistrationStatus, getUserById } from '@/lib/registrationService';
 import { sendWelcomeEmail } from '@/lib/email';
 
 export async function POST(

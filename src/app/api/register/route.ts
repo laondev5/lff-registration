@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { appendRegistration } from '@/lib/googleSheets';
+import { appendRegistration } from '@/lib/registrationService';
 
 export async function POST(request: Request) {
     try {

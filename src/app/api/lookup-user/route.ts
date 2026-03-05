@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { findUserByEmailOrPhone } from '@/lib/googleSheets';
+import { findUserByEmailOrPhone } from '@/lib/registrationService';
 
 export async function POST(request: Request) {
     try {

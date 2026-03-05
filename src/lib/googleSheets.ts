@@ -33,14 +33,14 @@ async function getSheetsClient() {
     return google.sheets({ version: 'v4', auth });
 }
 
-export async function appendRegistration(data: any) {
+export async function appendRegistration(data: any, existingId?: string) {
     const spreadsheetId = process.env.GOOGLE_SHEET_ID;
     if (!spreadsheetId) throw new Error("Missing GOOGLE_SHEET_ID");
 
     const sheets = await getSheetsClient();
 
-    // Generate a simple unique ID
-    const uniqueId = `LFF-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+    // Generate a simple unique ID or use provided
+    const uniqueId = existingId || `LFF-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
 
     // Columns:
     // A: UniqueId
@@ -477,12 +477,12 @@ export async function getAccommodationsWithAvailability() {
     });
 }
 
-export async function addAccommodation(data: any) {
+export async function addAccommodation(data: any, existingId?: string) {
     const spreadsheetId = process.env.GOOGLE_SHEET_ID;
     if (!spreadsheetId) throw new Error("Missing GOOGLE_SHEET_ID");
     const sheets = await getSheetsClient();
 
-    const uniqueId = `ACC-${Date.now()}`;
+    const uniqueId = existingId || `ACC-${Date.now()}`;
     const timestamp = new Date().toISOString();
 
     const row = [

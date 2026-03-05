@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { verifyTransaction } from '@/lib/paystack';
-import { appendRegistration } from '@/lib/googleSheets';
+import { appendRegistration } from '@/lib/registrationService';
 import { sendRegistrationEmail } from '@/lib/email';
 import * as QRCode from 'qrcode';
 

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Edit, Trash2, X } from "lucide-react";
+import { Plus, Edit, Trash2, X, LayoutGrid, List } from "lucide-react";
 import Image from "next/image";
 
 interface Accommodation {
@@ -25,6 +25,7 @@ export default function AccommodationsManager({
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [viewMode, setViewMode] = useState<"table" | "grid">("table");
 
   // Form State
   const [currentId, setCurrentId] = useState("");
@@ -134,57 +135,157 @@ export default function AccommodationsManager({
     <div>
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold text-gray-800">Accommodations</h1>
-        <button
-          onClick={() => openModal()}
-          className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition"
-        >
-          <Plus size={18} className="mr-2" />
-          Add New
-        </button>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {accommodations.map((acc) => (
-          <div
-            key={acc.id}
-            className="bg-white rounded-lg shadow-md overflow-hidden border"
-          >
-            <div className="relative h-48 w-full bg-gray-200">
-              {/* Use simple img tag if optimization is tricky with external google drive links */}
-              <img
-                src={acc.imageUrl || "/placeholder.jpg"}
-                alt={acc.title}
-                className="object-cover w-full h-full"
-              />
-            </div>
-            <div className="p-4">
-              <h3 className="text-lg font-bold text-gray-900">{acc.title}</h3>
-              <p className="text-blue-600 font-semibold mt-1">{acc.price}</p>
-              <p className="text-gray-500 text-sm mt-2 line-clamp-3">
-                {acc.description}
-              </p>
-              <div className="text-sm text-gray-500 mt-2">
-                Slots: {acc.slots}
-              </div>
-
-              <div className="flex justify-end mt-4 space-x-2">
-                <button
-                  onClick={() => openModal(acc)}
-                  className="p-2 text-gray-600 hover:text-blue-600 hover:bg-gray-100 rounded-full"
-                >
-                  <Edit size={18} />
-                </button>
-                <button
-                  onClick={() => handleDelete(acc.id)}
-                  className="p-2 text-gray-600 hover:text-red-600 hover:bg-gray-100 rounded-full"
-                >
-                  <Trash2 size={18} />
-                </button>
-              </div>
-            </div>
+        <div className="flex items-center space-x-4">
+          <div className="flex items-center bg-gray-100 rounded-md p-1">
+            <button
+              onClick={() => setViewMode("table")}
+              className={`p-1.5 rounded ${viewMode === "table" ? "bg-white shadow text-blue-600" : "text-gray-500 hover:text-gray-900"}`}
+              title="Table View"
+            >
+              <List size={18} />
+            </button>
+            <button
+              onClick={() => setViewMode("grid")}
+              className={`p-1.5 rounded ${viewMode === "grid" ? "bg-white shadow text-blue-600" : "text-gray-500 hover:text-gray-900"}`}
+              title="Grid View"
+            >
+              <LayoutGrid size={18} />
+            </button>
           </div>
-        ))}
+          <button
+            onClick={() => openModal()}
+            className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition"
+          >
+            <Plus size={18} className="mr-2" />
+            Add New
+          </button>
+        </div>
       </div>
+
+      {viewMode === "grid" ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {accommodations.map((acc) => (
+            <div
+              key={acc.id}
+              className="bg-white rounded-lg shadow-md overflow-hidden border"
+            >
+              <div className="relative h-48 w-full bg-gray-200">
+                {/* Use simple img tag if optimization is tricky with external google drive links */}
+                <img
+                  src={acc.imageUrl || "/placeholder.jpg"}
+                  alt={acc.title}
+                  className="object-cover w-full h-full"
+                />
+              </div>
+              <div className="p-4">
+                <h3 className="text-lg font-bold text-gray-900">{acc.title}</h3>
+                <p className="text-blue-600 font-semibold mt-1">{acc.price}</p>
+                <p className="text-gray-500 text-sm mt-2 line-clamp-3">
+                  {acc.description}
+                </p>
+                <div className="text-sm text-gray-500 mt-2">
+                  Slots: {acc.slots}
+                </div>
+
+                <div className="flex justify-end mt-4 space-x-2">
+                  <button
+                    onClick={() => openModal(acc)}
+                    className="p-2 text-gray-600 hover:text-blue-600 hover:bg-gray-100 rounded-full"
+                  >
+                    <Edit size={18} />
+                  </button>
+                  <button
+                    onClick={() => handleDelete(acc.id)}
+                    className="p-2 text-gray-600 hover:text-red-600 hover:bg-gray-100 rounded-full"
+                  >
+                    <Trash2 size={18} />
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="bg-white rounded-lg shadow overflow-hidden border">
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Image
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Title & Desc
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Price
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Slots
+                  </th>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Actions
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {accommodations.length === 0 ? (
+                  <tr>
+                    <td
+                      colSpan={5}
+                      className="px-6 py-4 text-center text-sm text-gray-500"
+                    >
+                      No accommodations found. Click "Add New" to create one.
+                    </td>
+                  </tr>
+                ) : (
+                  accommodations.map((acc) => (
+                    <tr key={acc.id} className="hover:bg-gray-50">
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <img
+                          src={acc.imageUrl || "/placeholder.jpg"}
+                          alt={acc.title}
+                          className="h-12 w-16 rounded-md object-cover"
+                        />
+                      </td>
+                      <td className="px-6 py-4 max-w-xs">
+                        <div className="text-sm font-bold text-gray-900 truncate">
+                          {acc.title}
+                        </div>
+                        <div className="text-sm text-gray-500 line-clamp-1">
+                          {acc.description}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm text-blue-600 font-semibold">
+                          {acc.price}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {acc.slots}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                        <button
+                          onClick={() => openModal(acc)}
+                          className="text-blue-600 hover:text-blue-900 mr-4 inline-flex items-center"
+                        >
+                          <Edit size={16} className="mr-1" /> Edit
+                        </button>
+                        <button
+                          onClick={() => handleDelete(acc.id)}
+                          className="text-red-600 hover:text-red-900 inline-flex items-center"
+                        >
+                          <Trash2 size={16} className="mr-1" /> Delete
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
       {/* Modal */}
       {isModalOpen && (

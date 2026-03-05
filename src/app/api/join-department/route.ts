@@ -1,6 +1,6 @@
 
 import { NextResponse } from 'next/server';
-import { updateUserDepartment } from '@/lib/googleSheets';
+import { updateUserDepartment } from '@/lib/registrationService';
 
 export async function POST(req: Request) {
     try {

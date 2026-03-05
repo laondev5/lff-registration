@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { updateAccommodation } from '@/lib/googleSheets';
+import { updateAccommodation } from '@/lib/registrationService';
 
 export async function POST(request: Request) {
     try {

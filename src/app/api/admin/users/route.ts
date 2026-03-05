@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getUsers } from '@/lib/googleSheets';
+import { getUsers } from '@/lib/registrationService';
 import { isAuthenticated, unauthorizedResponse } from '@/lib/adminAuth';
 
 export async function GET(request: NextRequest) {

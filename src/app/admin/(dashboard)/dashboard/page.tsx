@@ -1,4 +1,5 @@
-import { getUsers, getAccommodations } from "@/lib/googleSheets";
+import { getUsers } from "@/lib/registrationService";
+import { getAccommodations } from "@/lib/accommodationService";
 
 export default async function DashboardPage() {
   // We can fetch data directly on the server component
