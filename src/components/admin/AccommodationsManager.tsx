@@ -230,16 +230,54 @@ export default function AccommodationsManager({
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Price
+                    Pricing
                   </label>
-                  <input
-                    type="text"
-                    value={price}
-                    onChange={(e) => setPrice(e.target.value)}
-                    className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 text-black"
-                    placeholder="e.g. $50/night"
-                    required
-                  />
+                  <div className="flex gap-4 mb-2">
+                    <label className="flex items-center gap-1 text-sm text-gray-600">
+                      <input
+                        type="radio"
+                        name="pricingType"
+                        value="paid"
+                        checked={price !== "Free"}
+                        onChange={() => setPrice("")}
+                        className="accent-blue-600"
+                      />
+                      Paid
+                    </label>
+                    <label className="flex items-center gap-1 text-sm text-gray-600">
+                      <input
+                        type="radio"
+                        name="pricingType"
+                        value="free"
+                        checked={price === "Free"}
+                        onChange={() => setPrice("Free")}
+                        className="accent-blue-600"
+                      />
+                      Free
+                    </label>
+                  </div>
+                  {price !== "Free" && (
+                    <input
+                      type="text"
+                      value={price}
+                      onChange={(e) => {
+                        // Remove all non-digit characters
+                        const rawValue = e.target.value.replace(/\D/g, "");
+                        if (!rawValue) {
+                          setPrice("");
+                          return;
+                        }
+                        // Format with commas
+                        const formattedValue = new Intl.NumberFormat(
+                          "en-US",
+                        ).format(parseInt(rawValue, 10));
+                        setPrice(formattedValue);
+                      }}
+                      className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 text-black"
+                      placeholder="e.g. 5,000"
+                      required
+                    />
+                  )}
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">

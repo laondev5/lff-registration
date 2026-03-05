@@ -874,9 +874,22 @@ export function RegistrationForm() {
                           </div>
                         )}
                       <h4 className="font-bold text-white">{acc.title}</h4>
-                      <p className="text-primary font-semibold mt-1">
-                        {acc.price}
-                      </p>
+                      <div className="flex justify-between items-center mt-1">
+                        <p className="text-primary font-semibold">
+                          {acc.price === "Free"
+                            ? "Free"
+                            : `₦${acc.price} per night`}
+                        </p>
+                        {acc.slots && (
+                          <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-white/10 text-gray-300">
+                            {Math.max(
+                              0,
+                              parseInt(acc.slots) - (acc.bookedSlots || 0),
+                            )}{" "}
+                            slots left
+                          </span>
+                        )}
+                      </div>
                       <p className="text-xs text-gray-400 mt-2 line-clamp-2">
                         {acc.description}
                       </p>

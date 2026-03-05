@@ -462,7 +462,9 @@ export async function getAccommodationsWithAvailability() {
         // Assuming user.accommodationType matches acc.id or acc.title. We should probably match by title if that's what's saved.
         // Let's match by title since that's what usually goes into accommodationType
         const bookedSlots = users.filter(user => 
-            user.needsAccommodation === 'Yes' && user.accommodationType === acc.title
+            user.needsAccommodation === 'Yes' && 
+            user.accommodationType === acc.title &&
+            user.registrationStatus === 'Paid'
         ).length;
         
         const totalSlots = parseInt(acc.slots || '0', 10);
