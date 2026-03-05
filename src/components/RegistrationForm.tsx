@@ -24,36 +24,48 @@ import { SuccessAnimation } from "./SuccessAnimation";
 const TITLES = [
   "Bro",
   "Sis",
+  "Exhorter",
   "Deacon",
   "Deaconess",
+  "Snr Deacon",
+  "Snr Deaconess",
   "Pastor",
   "Elders",
   "Minister",
+  "VIP",
 ];
 
 const TITLE_TO_REG: Record<
   string,
   { type: string; label: string; amount: number }
 > = {
-  Bro: { type: "regular", label: "Regular & Exhorted", amount: 1000 },
-  Sis: { type: "regular", label: "Regular & Exhorted", amount: 1000 },
-  Deacon: { type: "deacon", label: "Deacon & Deaconess", amount: 2000 },
-  Deaconess: { type: "deacon", label: "Deacon & Deaconess", amount: 2000 },
+  Bro: { type: "regular", label: "Regular", amount: 2000 },
+  Sis: { type: "regular", label: "Regular", amount: 2000 },
+  Exhorter: { type: "exhorter", label: "Exhorter", amount: 3000 },
+  Deacon: { type: "deacon", label: "Deacons & Deaconess", amount: 4000 },
+  Deaconess: { type: "deacon", label: "Deacons & Deaconess", amount: 4000 },
+  "Snr Deacon": { type: "deacon", label: "Deacons & Deaconess", amount: 4000 },
+  "Snr Deaconess": {
+    type: "deacon",
+    label: "Deacons & Deaconess",
+    amount: 4000,
+  },
   Pastor: {
     type: "elders_ministers_pastors",
     label: "Elders, Ministers & Pastors",
-    amount: 3000,
+    amount: 5000,
   },
   Elders: {
     type: "elders_ministers_pastors",
     label: "Elders, Ministers & Pastors",
-    amount: 3000,
+    amount: 5000,
   },
   Minister: {
     type: "elders_ministers_pastors",
     label: "Elders, Ministers & Pastors",
-    amount: 3000,
+    amount: 5000,
   },
+  VIP: { type: "vip", label: "VIP", amount: 10000 },
 };
 
 const CONVENTION_PARTNER = {

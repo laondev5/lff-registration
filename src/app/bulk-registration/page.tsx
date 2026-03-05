@@ -18,40 +18,48 @@ import Link from "next/link";
 const TITLES = [
   "Bro",
   "Sis",
-  "Jnr Dcn",
-  "Jnr Dcns",
-  "Snr Dcn",
-  "Snr Dcns",
+  "Exhorter",
+  "Deacon",
+  "Deaconess",
+  "Snr Deacon",
+  "Snr Deaconess",
   "Pastor",
   "Elders",
   "Minister",
+  "VIP",
 ];
 
 const TITLE_TO_REG: Record<
   string,
   { type: string; label: string; amount: number }
 > = {
-  Bro: { type: "regular", label: "Regular & Exhorted", amount: 1000 },
-  Sis: { type: "regular", label: "Regular & Exhorted", amount: 1000 },
-  "Jnr Dcn": { type: "deacon", label: "Deacon & Deaconess", amount: 2000 },
-  "Jnr Dcns": { type: "deacon", label: "Deacon & Deaconess", amount: 2000 },
-  "Snr Dcn": { type: "deacon", label: "Deacon & Deaconess", amount: 2000 },
-  "Snr Dcns": { type: "deacon", label: "Deacon & Deaconess", amount: 2000 },
+  Bro: { type: "regular", label: "Regular", amount: 2000 },
+  Sis: { type: "regular", label: "Regular", amount: 2000 },
+  Exhorter: { type: "exhorter", label: "Exhorter", amount: 3000 },
+  Deacon: { type: "deacon", label: "Deacons & Deaconess", amount: 4000 },
+  Deaconess: { type: "deacon", label: "Deacons & Deaconess", amount: 4000 },
+  "Snr Deacon": { type: "deacon", label: "Deacons & Deaconess", amount: 4000 },
+  "Snr Deaconess": {
+    type: "deacon",
+    label: "Deacons & Deaconess",
+    amount: 4000,
+  },
   Pastor: {
     type: "elders_ministers_pastors",
     label: "Elders, Ministers & Pastors",
-    amount: 3000,
+    amount: 5000,
   },
   Elders: {
     type: "elders_ministers_pastors",
     label: "Elders, Ministers & Pastors",
-    amount: 3000,
+    amount: 5000,
   },
   Minister: {
     type: "elders_ministers_pastors",
     label: "Elders, Ministers & Pastors",
-    amount: 3000,
+    amount: 5000,
   },
+  VIP: { type: "vip", label: "VIP", amount: 10000 },
 };
 
 interface Registrant {
@@ -259,18 +267,26 @@ export default function BulkRegistrationPage() {
           <h3 className="text-sm font-semibold text-gray-300 mb-3">
             Registration Fees
           </h3>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 text-sm">
             <div className="bg-white/5 rounded-lg p-3 text-center">
-              <p className="text-gray-400">Bro / Sis</p>
-              <p className="text-primary font-bold text-lg">₦1,000</p>
-            </div>
-            <div className="bg-white/5 rounded-lg p-3 text-center">
-              <p className="text-gray-400">Deacons / Deaconess</p>
+              <p className="text-gray-400">Regular</p>
               <p className="text-primary font-bold text-lg">₦2,000</p>
             </div>
             <div className="bg-white/5 rounded-lg p-3 text-center">
-              <p className="text-gray-400">Pastors / Elders / Ministers</p>
+              <p className="text-gray-400">Exhorter</p>
               <p className="text-primary font-bold text-lg">₦3,000</p>
+            </div>
+            <div className="bg-white/5 rounded-lg p-3 text-center">
+              <p className="text-gray-400">Deacons & Deaconess</p>
+              <p className="text-primary font-bold text-lg">₦4,000</p>
+            </div>
+            <div className="bg-white/5 rounded-lg p-3 text-center">
+              <p className="text-gray-400">Pastors / Elders / Ministers</p>
+              <p className="text-primary font-bold text-lg">₦5,000</p>
+            </div>
+            <div className="bg-white/5 rounded-lg p-3 text-center">
+              <p className="text-gray-400">VIP</p>
+              <p className="text-primary font-bold text-lg">₦10,000+</p>
             </div>
           </div>
         </div>
