@@ -130,3 +130,51 @@ export async function sendRegistrationEmail(to: string, name: string, uniqueId: 
         return false;
     }
 }
+
+export async function sendOrderConfirmationEmail(to: string, name: string, orderId: string) {
+    const transporter = getTransporter();
+
+    const mailOptions = {
+        from: `"GAC 2026 Store" <${process.env.GMAIL_USER}>`,
+        to: to,
+        subject: `Order Confirmed - ${orderId} | GAC 2026`,
+        html: `
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eee; border-radius: 10px;">
+                <h1 style="color: #4F46E5; text-align: center;">Order Confirmed! ✅</h1>
+                <p>Dear <strong>${name}</strong>,</p>
+                <p>Your order <strong>${orderId}</strong> has been confirmed successfully.</p>
+                
+                <div style="background-color: #f0fdf4; padding: 20px; border-radius: 8px; margin: 20px 0; border: 1px solid #bbf7d0; text-align: center;">
+                    <p style="margin: 0; color: #166534; font-size: 16px; font-weight: bold;">
+                        🏕️ Please pick up your items at Alheri Camp
+                    </p>
+                    <p style="margin: 8px 0 0 0; color: #166534; font-size: 14px;">
+                        Present your order ID at the collection point.
+                    </p>
+                </div>
+
+                <div style="background-color: #4F46E5; color: white; padding: 15px; border-radius: 10px; margin: 20px 0; text-align: center;">
+                    <p style="margin: 0 0 5px 0; font-size: 12px; opacity: 0.9;">Your Order ID</p>
+                    <p style="margin: 0; font-size: 22px; font-weight: bold; letter-spacing: 2px;">${orderId}</p>
+                </div>
+
+                <p>Thank you for your purchase. We look forward to seeing you at GAC 2026!</p>
+
+                <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
+                <p style="font-size: 12px; color: #888; text-align: center;">
+                    Living Faith Foundation<br>
+                    GAC 2026 Planning Committee
+                </p>
+            </div>
+        `,
+    };
+
+    try {
+        await transporter.sendMail(mailOptions);
+        console.log(`Order confirmation email sent to ${to}`);
+        return true;
+    } catch (error) {
+        console.error("Error sending order confirmation email:", error);
+        return false;
+    }
+}

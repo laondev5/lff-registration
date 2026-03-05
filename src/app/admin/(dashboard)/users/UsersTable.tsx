@@ -24,37 +24,6 @@ interface User {
 
 export default function UsersTable({ users }: { users: User[] }) {
   const router = useRouter();
-  const [confirmingId, setConfirmingId] = useState<string | null>(null);
-
-  const handleConfirm = async (id: string, name: string) => {
-    if (
-      !confirm(
-        `Are you sure you want to confirm registration for ${name}? This will send a confirmation email.`,
-      )
-    ) {
-      return;
-    }
-
-    setConfirmingId(id);
-    try {
-      const res = await fetch(`/api/admin/users/${id}/confirm`, {
-        method: "POST",
-      });
-      const data = await res.json();
-
-      if (data.success) {
-        alert("User confirmed and email sent!");
-        router.refresh();
-      } else {
-        alert("Error confirming user: " + data.error);
-      }
-    } catch (error) {
-      console.error(error);
-      alert("An error occurred");
-    } finally {
-      setConfirmingId(null);
-    }
-  };
 
   return (
     <div className="bg-white shadow-md rounded-lg overflow-hidden border">
@@ -78,7 +47,7 @@ export default function UsersTable({ users }: { users: User[] }) {
                 Payment Proof
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Status / Action
+                Status
               </th>
             </tr>
           </thead>
@@ -149,34 +118,15 @@ export default function UsersTable({ users }: { users: User[] }) {
                   )}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="flex flex-col gap-2">
-                    {user.registrationStatus === "Confirmed" ? (
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 w-fit">
-                        <CheckCircle className="w-3 h-3 mr-1" /> Confirmed
-                      </span>
-                    ) : (
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 w-fit">
-                        Pending
-                      </span>
-                    )}
-
-                    {user.registrationStatus !== "Confirmed" && (
-                      <button
-                        onClick={() =>
-                          handleConfirm(user.uniqueId, user.fullName)
-                        }
-                        disabled={confirmingId === user.uniqueId}
-                        className="inline-flex items-center justify-center px-3 py-1.5 border border-transparent text-xs font-medium rounded shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50"
-                      >
-                        {confirmingId === user.uniqueId ? (
-                          <Loader2 className="w-3 h-3 animate-spin mr-1" />
-                        ) : (
-                          <CheckCircle className="w-3 h-3 mr-1" />
-                        )}
-                        Confirm Payment
-                      </button>
-                    )}
-                  </div>
+                  {user.registrationStatus === "Confirmed" ? (
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 w-fit">
+                      <CheckCircle className="w-3 h-3 mr-1" /> Confirmed
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 w-fit">
+                      Pending
+                    </span>
+                  )}
                 </td>
               </tr>
             ))}

@@ -213,3 +213,22 @@ export async function updateOrderStatus(orderId: string, status: string) {
 
     return true;
 }
+
+export async function getOrderByOrderId(orderId: string) {
+    await connectDB();
+    const order = await Order.findOne({ orderId }).lean() as any;
+    if (!order) return null;
+    return {
+        id: order.orderId,
+        orderId: order.orderId,
+        userId: order.userId,
+        items: order.items,
+        total: order.total,
+        status: order.status,
+        customerName: order.customerName || '',
+        customerEmail: order.customerEmail || '',
+        customerPhone: order.customerPhone || '',
+        paymentProof: order.paymentProof || '',
+        createdAt: order.createdAt?.toISOString?.() || order.createdAt,
+    };
+}

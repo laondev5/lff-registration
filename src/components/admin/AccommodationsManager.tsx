@@ -13,6 +13,7 @@ interface Accommodation {
   slots: string;
   imageUrl: string;
   fileId?: string;
+  days?: string;
 }
 
 export default function AccommodationsManager({
@@ -33,6 +34,7 @@ export default function AccommodationsManager({
   const [description, setDescription] = useState("");
   const [price, setPrice] = useState("");
   const [slots, setSlots] = useState("");
+  const [days, setDays] = useState("1");
   const [file, setFile] = useState<File | null>(null);
   const [imageUrl, setImageUrl] = useState("");
 
@@ -46,6 +48,7 @@ export default function AccommodationsManager({
       setDescription(acc.description);
       setPrice(acc.price);
       setSlots(acc.slots);
+      setDays(acc.days || "1");
     } else {
       setIsEditing(false);
       setCurrentId("");
@@ -53,6 +56,7 @@ export default function AccommodationsManager({
       setDescription("");
       setPrice("");
       setSlots("");
+      setDays("1");
       setImageUrl("");
     }
     setFile(null);
@@ -72,6 +76,7 @@ export default function AccommodationsManager({
     formData.append("description", description);
     formData.append("price", price);
     formData.append("slots", slots);
+    formData.append("days", days);
 
     if (file) {
       formData.append("file", file);
@@ -179,7 +184,11 @@ export default function AccommodationsManager({
               </div>
               <div className="p-4">
                 <h3 className="text-lg font-bold text-gray-900">{acc.title}</h3>
-                <p className="text-blue-600 font-semibold mt-1">{acc.price}</p>
+                <p className="text-blue-600 font-semibold mt-1">
+                  {acc.price === "Free"
+                    ? "Free"
+                    : `₦${acc.price} for ${acc.days || "1"} day(s)`}
+                </p>
                 <p className="text-gray-500 text-sm mt-2 line-clamp-3">
                   {acc.description}
                 </p>
@@ -258,7 +267,9 @@ export default function AccommodationsManager({
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm text-blue-600 font-semibold">
-                          {acc.price}
+                          {acc.price === "Free"
+                            ? "Free"
+                            : `₦${acc.price} for ${acc.days || "1"} day(s)`}
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
@@ -388,6 +399,18 @@ export default function AccommodationsManager({
                     type="number"
                     value={slots}
                     onChange={(e) => setSlots(e.target.value)}
+                    className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 text-black"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Number of Days
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    value={days}
+                    onChange={(e) => setDays(e.target.value)}
                     className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 text-black"
                   />
                 </div>

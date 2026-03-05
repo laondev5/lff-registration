@@ -10,6 +10,7 @@ export interface IAccommodation extends Document {
     createdAt: Date;
     fileId: string;
     sheetId?: string; // Optional: ID returned by Google Sheets
+    days?: string;
 }
 
 const AccommodationSchema = new Schema({
@@ -22,6 +23,7 @@ const AccommodationSchema = new Schema({
     createdAt: { type: Date, default: Date.now },
     fileId: { type: String, default: '' },
     sheetId: { type: String, default: '' },
+    days: { type: String, default: '1' },
 });
 
 export default mongoose.models.Accommodation || mongoose.model<IAccommodation>('Accommodation', AccommodationSchema);

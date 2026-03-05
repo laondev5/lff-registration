@@ -91,6 +91,29 @@ export function ProductForm({ initialData, isEdit = false }: ProductFormProps) {
     },
   });
 
+  const [displayPrice, setDisplayPrice] = useState<string>(
+    initialData?.price ? Number(initialData.price).toLocaleString("en-US") : "",
+  );
+
+  const handlePriceChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    // Remove all non-numeric characters
+    const rawValue = e.target.value.replace(/\D/g, "");
+    if (!rawValue) {
+      setDisplayPrice("");
+      // @ts-ignore
+      register("price").onChange({ target: { value: "", name: "price" } });
+      return;
+    }
+    const numValue = parseInt(rawValue, 10);
+    // Format for display
+    setDisplayPrice(numValue.toLocaleString("en-US"));
+    // Update react-hook-form value with raw number
+    // @ts-ignore
+    register("price").onChange({
+      target: { value: rawValue, name: "price" },
+    });
+  };
+
   const toggleSize = (size: string) => {
     setSizes((prev) => {
       const next = prev.includes(size)
@@ -133,12 +156,50 @@ export function ProductForm({ initialData, isEdit = false }: ProductFormProps) {
     currentSizes: string[],
     currentColors: ColorOption[],
   ) => {
-    if (currentSizes.length === 0 || currentColors.length === 0) {
+    if (currentColors.length === 0 && currentSizes.length === 0) {
       setVariants([]);
       return;
     }
     setVariants((prev) => {
       const newVariants: VariantStock[] = [];
+
+      // If we only have colors but no sizes
+      if (currentSizes.length === 0 && currentColors.length > 0) {
+        for (const color of currentColors) {
+          const existing = prev.find(
+            (v) => v.color === color.name && v.size === "N/A",
+          );
+          newVariants.push(
+            existing || {
+              color: color.name,
+              size: "N/A",
+              stock: 0,
+              sku: `${color.name.substring(0, 3).toUpperCase()}-NA`,
+            },
+          );
+        }
+        return newVariants;
+      }
+
+      // If we only have sizes but no colors
+      if (currentColors.length === 0 && currentSizes.length > 0) {
+        for (const size of currentSizes) {
+          const existing = prev.find(
+            (v) => v.color === "N/A" && v.size === size,
+          );
+          newVariants.push(
+            existing || {
+              color: "N/A",
+              size,
+              stock: 0,
+              sku: `NA-${size}`,
+            },
+          );
+        }
+        return newVariants;
+      }
+
+      // We have both colors and sizes
       for (const color of currentColors) {
         for (const size of currentSizes) {
           const existing = prev.find(
@@ -275,10 +336,14 @@ export function ProductForm({ initialData, isEdit = false }: ProductFormProps) {
                 Price (₦)
               </label>
               <input
-                type="number"
-                {...register("price")}
+                type="text"
+                value={displayPrice}
+                onChange={handlePriceChange}
+                placeholder="0"
                 className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-black transition-shadow"
               />
+              {/* Hidden input to handle RHF registration */}
+              <input type="hidden" {...register("price")} />
               {errors.price && (
                 <p className="text-red-500 text-xs">{errors.price.message}</p>
               )}
@@ -706,9 +771,11 @@ export function ProductForm({ initialData, isEdit = false }: ProductFormProps) {
                             <div
                               className="w-4 h-4 rounded-full border border-gray-300"
                               style={{
-                                backgroundColor: colors.find(
-                                  (c) => c.name === v.color,
-                                )?.hex,
+                                backgroundColor:
+                                  v.color === "N/A"
+                                    ? "#ccc"
+                                    : colors.find((c) => c.name === v.color)
+                                        ?.hex,
                               }}
                             />
                             {v.color}

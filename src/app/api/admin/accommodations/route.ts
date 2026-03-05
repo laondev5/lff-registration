@@ -46,6 +46,7 @@ export async function POST(request: NextRequest) {
         const description = formData.get('description') as string;
         const price = formData.get('price') as string;
         const slots = formData.get('slots') as string;
+        const days = formData.get('days') as string;
 
         if (!title || !price) {
             return NextResponse.json({ error: "Missing required fields (title, price)" }, { status: 400 });
@@ -77,6 +78,7 @@ export async function POST(request: NextRequest) {
             description: description || '',
             price,
             slots,
+            days,
             imageUrl,
             fileId
         };
@@ -109,6 +111,7 @@ export async function PUT(request: NextRequest) {
         if (formData.has('description')) updates.description = formData.get('description');
         if (formData.has('price')) updates.price = formData.get('price');
         if (formData.has('slots')) updates.slots = formData.get('slots');
+        if (formData.has('days')) updates.days = formData.get('days');
 
         if (file) {
             // Upload new file to Cloudinary

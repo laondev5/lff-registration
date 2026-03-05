@@ -901,7 +901,7 @@ export function RegistrationForm() {
                       <p className="text-primary font-semibold">
                         {acc.price === "Free"
                           ? "Free"
-                          : `₦${acc.price} per night`}
+                          : `₦${acc.price} for ${(acc as any).days || "1"} day(s)`}
                       </p>
                       {acc.slots && (
                         <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-white/10 text-gray-300">
@@ -1092,7 +1092,7 @@ export function RegistrationForm() {
               Instructions
             </h4>
 
-            {paymentAccount ? (
+            {paymentAccount && (
               <div className="bg-white/5 p-4 rounded-lg space-y-2">
                 <p className="text-gray-400 text-sm">
                   Please transfer the fee to:
@@ -1112,11 +1112,6 @@ export function RegistrationForm() {
                   Use your name "{data.fullName}" as reference/remark.
                 </p>
               </div>
-            ) : (
-              <div className="bg-yellow-500/10 text-yellow-500 p-4 rounded-lg text-sm">
-                No payment account configured. Please contact support or proceed
-                if instructed.
-              </div>
             )}
 
             <button
@@ -1128,7 +1123,14 @@ export function RegistrationForm() {
                 <Loader2 className="w-5 h-5 animate-spin" />
               ) : (
                 <>
-                  I have made the transfer <CheckCircle className="w-5 h-5" />
+                  {!isConventionPartner &&
+                  registrationInfo?.amount === 0 &&
+                  (!data.needsAccommodation ||
+                    String(data.accommodationPrice).toLowerCase() === "free" ||
+                    data.accommodationPrice === "0")
+                    ? "Register Now"
+                    : "Pay Now"}{" "}
+                  <CheckCircle className="w-5 h-5 ml-2" />
                 </>
               )}
             </button>

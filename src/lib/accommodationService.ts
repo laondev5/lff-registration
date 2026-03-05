@@ -18,6 +18,7 @@ function formatAccommodation(a: IAccommodation | any) {
         price: a.price,
         imageUrl: a.imageUrl,
         slots: a.slots,
+        days: a.days,
         createdAt: a.createdAt?.toISOString?.() || a.createdAt,
         fileId: a.fileId,
         sheetId: a.sheetId || '',
@@ -64,6 +65,7 @@ export async function addAccommodation(data: any) {
         price: data.price,
         imageUrl: data.imageUrl || '',
         slots: data.slots || '0',
+        days: data.days || '1',
         fileId: data.fileId || '',
     });
 
@@ -88,6 +90,7 @@ export async function updateAccommodationListing(id: string, data: any) {
     if (data.price !== undefined) acc.price = data.price;
     if (data.imageUrl !== undefined) acc.imageUrl = data.imageUrl;
     if (data.slots !== undefined) acc.slots = data.slots;
+    if (data.days !== undefined) acc.days = data.days;
     if (data.fileId !== undefined) acc.fileId = data.fileId;
 
     await acc.save();
