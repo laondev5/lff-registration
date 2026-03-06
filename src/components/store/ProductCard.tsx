@@ -27,7 +27,7 @@ export function ProductCard({ product }: { product: Product }) {
   return (
     <Link
       href={`/store/product/${product.id}`}
-      className="group bg-card border border-white/10 rounded-xl overflow-hidden hover:border-primary/50 transition-all duration-300 flex flex-col"
+      className="group bg-card border border-gray-200 dark:border-white/10 rounded-xl overflow-hidden hover:border-primary/50 transition-all duration-300 flex flex-col"
     >
       <div className="aspect-square bg-gray-100 relative overflow-hidden">
         {product.images[0] ? (
@@ -37,14 +37,14 @@ export function ProductCard({ product }: { product: Product }) {
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
           />
         ) : (
-          <div className="w-full h-full flex items-center justify-center bg-gray-800 text-gray-500">
+          <div className="w-full h-full flex items-center justify-center bg-gray-200 dark:bg-gray-800 text-gray-500">
             No Image
           </div>
         )}
 
         {/* Quick View overlay */}
         <div className="product-card-overlay">
-          <span className="bg-white text-black px-4 py-2 rounded-full text-sm font-medium flex items-center gap-2">
+          <span className="bg-white text-black dark:bg-gray-800 dark:text-white px-4 py-2 rounded-full text-sm font-medium flex items-center gap-2 shadow-lg">
             <Eye size={16} /> Quick View
           </span>
         </div>
@@ -84,18 +84,20 @@ export function ProductCard({ product }: { product: Product }) {
         <div className="text-xs text-primary font-semibold mb-1 uppercase tracking-wider">
           {product.category}
         </div>
-        <h3 className="text-lg font-bold text-white mb-2 line-clamp-2 group-hover:text-primary transition-colors">
+        <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2 line-clamp-2 group-hover:text-primary transition-colors">
           {product.name}
         </h3>
 
         {/* Size range */}
         {sizeRange && (
-          <p className="text-xs text-gray-500 mb-2">Sizes: {sizeRange}</p>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">
+            Sizes: {sizeRange}
+          </p>
         )}
 
         <div className="mt-auto space-y-3">
           <div className="flex items-center justify-between">
-            <span className="text-xl font-bold text-white">
+            <span className="text-xl font-bold text-gray-900 dark:text-white">
               ₦{parseInt(product.price).toLocaleString()}
             </span>
             {stockStatus === "in" && (
@@ -115,7 +117,7 @@ export function ProductCard({ product }: { product: Product }) {
                 />
               ))}
               {product.colors.length > 5 && (
-                <span className="text-xs text-gray-500 ml-1">
+                <span className="text-xs text-gray-500 dark:text-gray-400 ml-1">
                   +{product.colors.length - 5}
                 </span>
               )}

@@ -160,12 +160,14 @@ export default function CheckoutPage() {
   if (orderSuccess) {
     return (
       <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4">
-        <div className="max-w-md w-full bg-card border border-white/10 rounded-2xl p-8 text-center animate-in zoom-in duration-300">
+        <div className="max-w-md w-full bg-card border border-gray-200 dark:border-white/10 rounded-2xl p-8 text-center animate-in zoom-in duration-300">
           <div className="w-20 h-20 bg-green-500/20 rounded-full flex items-center justify-center mx-auto mb-6">
             <CheckCircle className="w-10 h-10 text-green-500" />
           </div>
-          <h2 className="text-2xl font-bold text-white mb-2">Order Placed!</h2>
-          <p className="text-gray-400 mb-2">
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
+            Order Placed!
+          </h2>
+          <p className="text-gray-500 dark:text-gray-400 mb-2">
             Your order <strong>#{orderId}</strong> has been successfully placed.
           </p>
           <p className="text-sm text-gray-500 mb-8">
@@ -192,7 +194,7 @@ export default function CheckoutPage() {
           ].map((s, i) => (
             <div key={s.num} className="flex items-center gap-2">
               <div
-                className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm transition-all ${step >= s.num ? "bg-primary text-black" : "bg-white/10 text-gray-500"}`}
+                className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm transition-all ${step >= s.num ? "bg-primary text-black" : "bg-gray-200 text-gray-400 dark:bg-white/10 dark:text-gray-500"}`}
               >
                 {step > s.num ? <Check className="w-5 h-5" /> : s.num}
               </div>
@@ -203,7 +205,7 @@ export default function CheckoutPage() {
               </span>
               {i < 2 && (
                 <div
-                  className={`w-12 h-0.5 ${step > s.num ? "bg-primary" : "bg-white/10"}`}
+                  className={`w-12 h-0.5 ${step > s.num ? "bg-primary" : "bg-gray-200 dark:bg-white/10"}`}
                 />
               )}
             </div>
@@ -212,8 +214,10 @@ export default function CheckoutPage() {
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
           {/* Order Summary - always visible */}
-          <div className="bg-card border border-white/10 rounded-2xl p-6 h-fit">
-            <h2 className="text-xl font-bold text-white mb-6">Order Summary</h2>
+          <div className="bg-card border border-gray-200 dark:border-white/10 rounded-2xl p-6 h-fit">
+            <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-6">
+              Order Summary
+            </h2>
             <div className="space-y-4 mb-6 max-h-96 overflow-y-auto pr-2 custom-scrollbar">
               {items.map((item, idx) => {
                 const effectivePrice = getEffectivePrice(
@@ -225,7 +229,7 @@ export default function CheckoutPage() {
                 return (
                   <div
                     key={`${item.product.id}_${item.selectedColor}_${item.selectedSize}_${idx}`}
-                    className="flex gap-4 items-center bg-white/5 p-3 rounded-lg"
+                    className="flex gap-4 items-center bg-gray-50 dark:bg-white/5 p-3 rounded-lg"
                   >
                     <div className="w-16 h-16 bg-gray-100 rounded-md overflow-hidden flex-shrink-0">
                       {item.product.images[0] && (
@@ -237,7 +241,7 @@ export default function CheckoutPage() {
                       )}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-white truncate">
+                      <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
                         {item.product.name}
                       </p>
                       <p className="text-xs text-gray-400">
@@ -278,18 +282,18 @@ export default function CheckoutPage() {
                 );
               })}
             </div>
-            <div className="border-t border-white/10 pt-4 flex justify-between text-white font-bold text-xl">
+            <div className="border-t border-gray-200 dark:border-white/10 pt-4 flex justify-between text-gray-900 dark:text-white font-bold text-xl">
               <span>Total</span>
               <span>₦{getTotal().toLocaleString()}</span>
             </div>
           </div>
 
           {/* Step Content */}
-          <div className="bg-card border border-white/10 rounded-2xl p-8 h-fit">
+          <div className="bg-card border border-gray-200 dark:border-white/10 rounded-2xl p-8 h-fit">
             {/* Step 1: Customer Details */}
             {step === 1 && (
               <>
-                <h1 className="text-2xl font-bold text-white mb-6">
+                <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">
                   Customer Details
                 </h1>
                 <form
@@ -297,14 +301,14 @@ export default function CheckoutPage() {
                   className="space-y-4"
                 >
                   <div className="space-y-1">
-                    <label className="text-sm font-medium text-gray-300">
+                    <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
                       Full Name
                     </label>
                     <div className="relative">
-                      <User className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 w-4 h-4" />
+                      <User className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500 w-4 h-4" />
                       <input
                         {...register("fullName")}
-                        className="w-full bg-white/5 border border-white/10 rounded-lg pl-10 pr-4 py-2 text-white focus:outline-none focus:border-primary transition-colors"
+                        className="w-full bg-white dark:bg-white/5 border border-gray-300 dark:border-white/10 rounded-lg pl-10 pr-4 py-2 text-gray-900 dark:text-white focus:outline-none focus:border-primary transition-colors"
                         placeholder="John Doe"
                       />
                     </div>
@@ -316,14 +320,14 @@ export default function CheckoutPage() {
                   </div>
 
                   <div className="space-y-1">
-                    <label className="text-sm font-medium text-gray-300">
+                    <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
                       Email Address
                     </label>
                     <div className="relative">
-                      <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 w-4 h-4" />
+                      <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500 w-4 h-4" />
                       <input
                         {...register("email")}
-                        className="w-full bg-white/5 border border-white/10 rounded-lg pl-10 pr-4 py-2 text-white focus:outline-none focus:border-primary transition-colors"
+                        className="w-full bg-white dark:bg-white/5 border border-gray-300 dark:border-white/10 rounded-lg pl-10 pr-4 py-2 text-gray-900 dark:text-white focus:outline-none focus:border-primary transition-colors"
                         placeholder="john@example.com"
                       />
                     </div>
@@ -335,14 +339,14 @@ export default function CheckoutPage() {
                   </div>
 
                   <div className="space-y-1">
-                    <label className="text-sm font-medium text-gray-300">
+                    <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
                       Phone Number
                     </label>
                     <div className="relative">
-                      <Phone className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 w-4 h-4" />
+                      <Phone className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500 w-4 h-4" />
                       <input
                         {...register("phone")}
-                        className="w-full bg-white/5 border border-white/10 rounded-lg pl-10 pr-4 py-2 text-white focus:outline-none focus:border-primary transition-colors"
+                        className="w-full bg-white dark:bg-white/5 border border-gray-300 dark:border-white/10 rounded-lg pl-10 pr-4 py-2 text-gray-900 dark:text-white focus:outline-none focus:border-primary transition-colors"
                         placeholder="08012345678"
                       />
                     </div>
@@ -368,12 +372,12 @@ export default function CheckoutPage() {
             {/* Step 2: Pay with Paystack directly */}
             {step === 2 && (
               <div className="space-y-6">
-                <h1 className="text-2xl font-bold text-white mb-6 flex items-center gap-2">
+                <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-6 flex items-center gap-2">
                   <CreditCard className="w-6 h-6" /> Confirm Order
                 </h1>
 
-                <div className="bg-white/5 border border-white/10 p-6 rounded-xl">
-                  <p className="text-gray-300 mb-4">
+                <div className="bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 p-6 rounded-xl">
+                  <p className="text-gray-700 dark:text-gray-300 mb-4">
                     You are about to pay{" "}
                     <strong>₦{getTotal().toLocaleString()}</strong> via
                     Paystack.
@@ -381,7 +385,7 @@ export default function CheckoutPage() {
                   <div className="flex gap-3 mt-6">
                     <button
                       onClick={() => setStep(1)}
-                      className="flex-1 bg-white/10 text-white py-3 rounded-lg font-bold flex items-center justify-center gap-2 hover:bg-white/20 transition-colors"
+                      className="flex-1 bg-white dark:bg-white/10 text-gray-900 border border-gray-300 dark:border-transparent dark:text-white py-3 rounded-lg font-bold flex items-center justify-center gap-2 hover:bg-gray-50 dark:hover:bg-white/20 transition-colors"
                     >
                       <ArrowLeft className="w-5 h-5" /> Back
                     </button>

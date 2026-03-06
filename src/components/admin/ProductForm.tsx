@@ -79,6 +79,7 @@ export function ProductForm({ initialData, isEdit = false }: ProductFormProps) {
   const {
     register,
     handleSubmit,
+    setValue,
     formState: { errors },
   } = useForm<ProductFormData>({
     resolver: zodResolver(productSchema),
@@ -100,18 +101,14 @@ export function ProductForm({ initialData, isEdit = false }: ProductFormProps) {
     const rawValue = e.target.value.replace(/\D/g, "");
     if (!rawValue) {
       setDisplayPrice("");
-      // @ts-ignore
-      register("price").onChange({ target: { value: "", name: "price" } });
+      setValue("price", "");
       return;
     }
     const numValue = parseInt(rawValue, 10);
     // Format for display
     setDisplayPrice(numValue.toLocaleString("en-US"));
     // Update react-hook-form value with raw number
-    // @ts-ignore
-    register("price").onChange({
-      target: { value: rawValue, name: "price" },
-    });
+    setValue("price", rawValue);
   };
 
   const toggleSize = (size: string) => {
