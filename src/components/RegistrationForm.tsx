@@ -853,6 +853,9 @@ export function RegistrationForm() {
             <p className="text-gray-400 text-sm">
               Please select your preferred accommodation.
             </p>
+            <p className="text-primary text-sm mt-1 font-medium">
+              All accommodation outside the camp has transportation included.
+            </p>
           </div>
 
           {isLoadingAccommodations ? (
