@@ -880,7 +880,7 @@ export function RegistrationForm() {
                       }
                       updateData({
                         needsAccommodation: true,
-                        accommodationType: acc.title,
+                        accommodationType: acc.title.trim(),
                         accommodationPrice: acc.price,
                         accommodationId: acc.id,
                       });

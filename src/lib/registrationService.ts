@@ -81,7 +81,7 @@ export async function appendRegistration(data: any) {
         registrationAmount: data.registrationAmount || '',
         registrationPaymentProof: '',
         needsAccommodation: data.needsAccommodation ? 'Yes' : 'No',
-        accommodationType: data.accommodationType || '',
+        accommodationType: (data.accommodationType || '').trim(),
         price: data.accommodationPrice || '',
         duration: data.duration || '',
         paymentProof: '',

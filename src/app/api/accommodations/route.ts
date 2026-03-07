@@ -1,6 +1,7 @@
-
 import { NextResponse } from 'next/server';
 import { getAccommodationsWithAvailability } from '@/lib/accommodationService';
+
+export const dynamic = 'force-dynamic';
 
 export async function GET() {
     try {

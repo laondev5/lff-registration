@@ -50,7 +50,7 @@ export async function POST(request: Request) {
           const accommodations = await getAccommodationsWithAvailability();
           
           const selectedAcc = accommodations.find(
-            (a: any) => a.title === regData.accommodationType || a.id === regData.accommodationId
+            (a: any) => a.title.trim() === (regData.accommodationType || '').trim() || a.id === regData.accommodationId
           );
 
           if (selectedAcc && selectedAcc.isFullyBooked) {

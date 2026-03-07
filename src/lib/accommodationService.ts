@@ -37,19 +37,18 @@ export async function getAccommodationsWithAvailability() {
     
     // Count how many registrations have booked this accommodation
     const users = await Registration.find({
-        needsAccommodation: 'Yes',
-        registrationStatus: 'Paid'
+        needsAccommodation: 'Yes'
     }).lean();
 
     return accommodations.map(acc => {
         // We match by title since that's what usually goes into accommodationType
-        const bookedSlots = users.filter((user: any) => user.accommodationType === acc.title).length;
+        const bookedSlots = users.filter((user: any) => (user.accommodationType || '').trim() === acc.title.trim()).length;
         const totalSlots = parseInt(acc.slots || '0', 10);
         
         return {
             ...acc,
             bookedSlots,
-            isFullyBooked: totalSlots > 0 && bookedSlots >= totalSlots
+            isFullyBooked: totalSlots === 0 || bookedSlots >= totalSlots
         };
     });
 }
