@@ -80,6 +80,7 @@ export default function AccommodationsPage() {
                 features={[]} // Features not in sheet currently
                 image={acc.imageUrl || "bg-gray-800"} // Use imageUrl or fallback
                 imageUrl={acc.imageUrl} // Pass real URL if card supports it
+                isFullyBooked={(acc as any).isFullyBooked}
               />
             ))}
           </div>

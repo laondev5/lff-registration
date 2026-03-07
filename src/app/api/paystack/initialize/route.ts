@@ -42,6 +42,24 @@ export async function POST(request: Request) {
         break;
       case 'registration':
         subaccount = process.env.PAYSTACK_REGISTRATION_SUBACCOUNT || '';
+        
+        // Slot validation for accommodation
+        const regData = metadata?.registrationData;
+        if (regData?.needsAccommodation) {
+          const { getAccommodationsWithAvailability } = await import('@/lib/accommodationService');
+          const accommodations = await getAccommodationsWithAvailability();
+          
+          const selectedAcc = accommodations.find(
+            (a: any) => a.title === regData.accommodationType || a.id === regData.accommodationId
+          );
+
+          if (selectedAcc && selectedAcc.isFullyBooked) {
+             return NextResponse.json(
+               { success: false, error: 'The selected accommodation is currently fully booked. Please select another one.' },
+               { status: 400 }
+             );
+          }
+        }
         break;
       default:
         return NextResponse.json(

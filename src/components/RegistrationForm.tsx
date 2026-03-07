@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { SuccessAnimation } from "./SuccessAnimation";
+import { toast } from "react-hot-toast";
 
 // ─── Title → Registration Fee Mapping ──────────────────
 const TITLES = [
@@ -331,7 +332,7 @@ export function RegistrationForm() {
       }
     } catch (err: any) {
       console.error("Registration initiation error:", err);
-      alert("Registration initiation error: " + err.message);
+      toast.error(err.message || "Registration initiation error");
     } finally {
       setIsSubmitting(false);
     }
@@ -873,7 +874,10 @@ export function RegistrationForm() {
                   <div
                     key={acc.id}
                     onClick={() => {
-                      if (acc.isFullyBooked) return;
+                      if (acc.isFullyBooked) {
+                        toast.error("This accommodation is fully booked.");
+                        return;
+                      }
                       updateData({
                         needsAccommodation: true,
                         accommodationType: acc.title,
