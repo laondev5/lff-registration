@@ -22,6 +22,8 @@ import { SuccessAnimation } from "./SuccessAnimation";
 
 // ─── Title → Registration Fee Mapping ──────────────────
 const TITLES = [
+  "Child",
+  "Teenager",
   "Bro",
   "Sis",
   "Exhorter",
@@ -39,6 +41,8 @@ const TITLE_TO_REG: Record<
   string,
   { type: string; label: string; amount: number }
 > = {
+  Child: { type: "child", label: "Child", amount: 500 },
+  Teenager: { type: "teenager", label: "Teenager", amount: 1000 },
   Bro: { type: "regular", label: "Regular", amount: 2000 },
   Sis: { type: "regular", label: "Regular", amount: 2000 },
   Exhorter: { type: "exhorter", label: "Exhorter", amount: 3000 },
