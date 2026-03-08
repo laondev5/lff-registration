@@ -27,6 +27,10 @@ export interface RegistrationData {
     registrationType: string;
     registrationAmount: string;
 
+    // Department
+    department: string;
+    subDepartment: string;
+
     needsAccommodation: boolean;
     accommodationType?: string;
     accommodationPrice?: string;
@@ -67,6 +71,8 @@ const initialData: RegistrationData = {
     prayerRequest: '',
     registrationType: '',
     registrationAmount: '',
+    department: '',
+    subDepartment: '',
     needsAccommodation: false,
     accommodationPrice: '',
     hasPersonalAccommodation: '',

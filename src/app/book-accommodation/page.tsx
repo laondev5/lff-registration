@@ -24,6 +24,7 @@ interface Accommodation {
   price: string;
   duration?: string;
   description?: string;
+  isFullyBooked?: boolean;
 }
 
 interface PaymentAccount {
@@ -362,19 +363,29 @@ export default function BookAccommodationPage() {
                 </div>
               ) : (
                 <div className="space-y-3 max-h-80 overflow-y-auto pr-2 custom-scrollbar">
-                  {accommodations.map((acc, idx) => (
+                  {accommodations.map((acc, idx) => {
+                    const isSoldOut = acc.isFullyBooked;
+                    return (
                     <button
                       key={idx}
-                      onClick={() => setSelectedAccommodation(acc)}
-                      className={`w-full text-left p-4 rounded-xl border-2 transition-all ${
-                        selectedAccommodation?.name === acc.name
+                      onClick={() => !isSoldOut && setSelectedAccommodation(acc)}
+                      disabled={isSoldOut}
+                      className={`relative w-full text-left p-4 rounded-xl border-2 transition-all ${
+                        isSoldOut
+                          ? "border-red-900/30 bg-red-950/20 opacity-60 cursor-not-allowed"
+                          : selectedAccommodation?.name === acc.name
                           ? "border-primary bg-primary/10"
                           : "border-white/10 bg-white/5 hover:border-white/30"
                       }`}
                     >
+                      {isSoldOut && (
+                        <div className="absolute top-2 right-2 bg-red-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full z-10">
+                          SOLD OUT
+                        </div>
+                      )}
                       <div className="flex items-center justify-between">
                         <div>
-                          <p className="font-bold text-white">{acc.name}</p>
+                          <p className={`font-bold ${isSoldOut ? 'text-gray-400 line-through' : 'text-white'}`}>{acc.name}</p>
                           {acc.duration && (
                             <p className="text-xs text-gray-400 mt-1">
                               {acc.duration}
@@ -386,12 +397,13 @@ export default function BookAccommodationPage() {
                             </p>
                           )}
                         </div>
-                        <p className="text-lg font-black text-primary">
+                        <p className={`text-lg font-black ${isSoldOut ? 'text-gray-500' : 'text-primary'}`}>
                           ₦{parseInt(acc.price).toLocaleString()}
                         </p>
                       </div>
                     </button>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
 

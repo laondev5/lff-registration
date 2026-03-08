@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import {
+    getAccommodationsWithAvailability,
     getAccommodations,
     addAccommodation,
     updateAccommodationListing,
@@ -26,7 +27,7 @@ export async function GET(request: NextRequest) {
     }
 
     try {
-        const accommodations = await getAccommodations();
+        const accommodations = await getAccommodationsWithAvailability();
         return NextResponse.json(accommodations);
     } catch (error) {
         console.error("Error fetching accommodations:", error);
@@ -81,7 +82,7 @@ export async function POST(request: NextRequest) {
             days,
             imageUrl,
             fileId,
-            reservedFor: (formData.get('reservedFor') as string) || 'general',
+            accessTags: JSON.parse((formData.get('accessTags') as string) || '[]'),
         };
 
         const id = await addAccommodation(accommodationData);
@@ -113,7 +114,7 @@ export async function PUT(request: NextRequest) {
         if (formData.has('price')) updates.price = formData.get('price');
         if (formData.has('slots')) updates.slots = formData.get('slots');
         if (formData.has('days')) updates.days = formData.get('days');
-        if (formData.has('reservedFor')) updates.reservedFor = formData.get('reservedFor');
+        if (formData.has('accessTags')) updates.accessTags = JSON.parse(formData.get('accessTags') as string);
 
         if (file) {
             // Upload new file to Cloudinary

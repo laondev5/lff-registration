@@ -71,6 +71,7 @@ interface Accommodation {
   imageUrl: string;
   slots: string;
   isFullyBooked?: boolean;
+  accessTags?: string[];
 }
 
 interface Registrant {
@@ -988,17 +989,25 @@ export default function BulkRegistrationPage() {
                                 Select accommodation
                               </option>
                               {accommodations
-                                .filter((a) => !a.isFullyBooked)
+                                .filter((a) => {
+                                  const accTags = Array.isArray(a.accessTags) ? a.accessTags : [];
+                                  if (accTags.length === 0) return true;
+                                  
+                                  const userTags = [registrant.title].map(t => t?.trim().toLowerCase()).filter(Boolean);
+                                  return accTags.some(tag => typeof tag === 'string' && userTags.includes(tag.trim().toLowerCase()));
+                                })
                                 .map((acc) => (
                                   <option
                                     key={acc.id}
                                     value={acc.id}
+                                    disabled={acc.isFullyBooked}
                                     className="text-gray-600"
                                   >
                                     {acc.title} — ₦
                                     {parseInt(
                                       acc.price.replace(/[^0-9]/g, ""),
                                     ).toLocaleString()}
+                                    {acc.isFullyBooked ? ' (SOLD OUT)' : ''}
                                   </option>
                                 ))}
                             </select>

@@ -79,46 +79,119 @@ export async function GET(request: Request) {
     
     if (transactionType === 'registration') {
       const uniqueId = paystackData.metadata?.uniqueId;
+      const registrationData = paystackData.metadata?.registrationData;
       
       if (uniqueId) {
         // Found pre-saved registration, confirm it
-        try {
-          await updateRegistrationStatus(uniqueId, 'Confirmed');
-          await updatePaymentReference(uniqueId, reference);
-
-          // Try to send email
+        const existingUser = await getUserById(uniqueId);
+        
+        if (existingUser) {
+          // User exists in DB — just confirm status
           try {
-            const user = await getUserById(uniqueId);
-            const registrationData = paystackData.metadata?.registrationData;
-            if (user && user.email) {
-              const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
-              const scanUrl = `${baseUrl}/admin/scanner?id=${uniqueId}`;
-              const qrCodeDataUrl = await QRCode.toDataURL(scanUrl, {
-                width: 300, margin: 2,
-                color: { dark: '#000000', light: '#ffffff' }
-              });
-              await sendRegistrationEmail(
-                user.email, 
-                user.fullName || registrationData?.fullName || '', 
-                uniqueId, reference, qrCodeDataUrl
-              );
+            await updateRegistrationStatus(uniqueId, 'Confirmed');
+            await updatePaymentReference(uniqueId, reference);
+
+            // Try to send email
+            try {
+              if (existingUser.email) {
+                const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
+                const scanUrl = `${baseUrl}/admin/scanner?id=${uniqueId}`;
+                const qrCodeDataUrl = await QRCode.toDataURL(scanUrl, {
+                  width: 300, margin: 2,
+                  color: { dark: '#000000', light: '#ffffff' }
+                });
+                await sendRegistrationEmail(
+                  existingUser.email, 
+                  existingUser.fullName || registrationData?.fullName || '', 
+                  uniqueId, reference, qrCodeDataUrl
+                );
+              }
+            } catch (emailErr) {
+              console.error('[Verify] Email failed but registration confirmed:', emailErr);
             }
-          } catch (emailErr) {
-            console.error('[Verify] Email failed but registration confirmed:', emailErr);
+
+            return NextResponse.json({
+              success: true,
+              recovered: true,
+              message: 'Payment verified and registration confirmed!',
+              data: { uniqueId, reference, fullName: existingUser.fullName }
+            });
+          } catch (err: any) {
+            console.error('[Verify] Failed to confirm registration:', err);
+            return NextResponse.json(
+              { success: false, error: 'Failed to confirm registration. Please contact support.' },
+              { status: 500 }
+            );
+          }
+        } else if (registrationData) {
+          // User NOT in DB but we have the data from Paystack metadata — create it
+          try {
+            const { appendRegistration } = await import('@/lib/registrationService');
+            const newUniqueId = await appendRegistration({
+              ...registrationData,
+              registrationStatus: 'Confirmed',
+              paymentReference: reference,
+            });
+            await updatePaymentReference(newUniqueId, reference);
+
+            // Try to send email
+            try {
+              if (registrationData.email) {
+                const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
+                const scanUrl = `${baseUrl}/admin/scanner?id=${newUniqueId}`;
+                const qrCodeDataUrl = await QRCode.toDataURL(scanUrl, {
+                  width: 300, margin: 2,
+                  color: { dark: '#000000', light: '#ffffff' }
+                });
+                await sendRegistrationEmail(
+                  registrationData.email, 
+                  registrationData.fullName || '', 
+                  newUniqueId, reference, qrCodeDataUrl
+                );
+              }
+            } catch (emailErr) {
+              console.error('[Verify] Email failed but registration recovered:', emailErr);
+            }
+
+            return NextResponse.json({
+              success: true,
+              recovered: true,
+              message: 'Payment verified! Registration has been recovered and confirmed.',
+              data: { uniqueId: newUniqueId, reference, fullName: registrationData.fullName }
+            });
+          } catch (err: any) {
+            console.error('[Verify] Failed to recover registration from metadata:', err);
+            return NextResponse.json(
+              { success: false, error: 'Payment verified but failed to create registration. Please contact support with reference: ' + reference },
+              { status: 500 }
+            );
+          }
+        }
+      }
+
+      // Handle bulk registrations
+      if (paystackData.metadata?.registrationDataList) {
+        try {
+          const { appendRegistration } = await import('@/lib/registrationService');
+          const recoveredIds: string[] = [];
+          
+          for (const regItem of paystackData.metadata.registrationDataList) {
+            const uid = await appendRegistration({
+              ...regItem,
+              registrationStatus: 'Confirmed',
+              paymentReference: reference,
+            });
+            recoveredIds.push(uid);
           }
 
           return NextResponse.json({
             success: true,
             recovered: true,
-            message: 'Payment verified and registration confirmed!',
-            data: { uniqueId, reference }
+            message: `Payment verified! ${recoveredIds.length} registration(s) recovered and confirmed.`,
+            data: { uniqueIds: recoveredIds, reference }
           });
         } catch (err: any) {
-          console.error('[Verify] Failed to confirm registration:', err);
-          return NextResponse.json(
-            { success: false, error: 'Failed to confirm registration. Please contact support.' },
-            { status: 500 }
-          );
+          console.error('[Verify] Failed to recover bulk registrations:', err);
         }
       }
     }

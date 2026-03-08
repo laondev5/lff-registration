@@ -11,23 +11,29 @@ interface Accommodation {
   description: string;
   price: string;
   slots: string;
+  bookedSlots?: number;
+  remainingSlots?: number;
+  isFullyBooked?: boolean;
   imageUrl: string;
   fileId?: string;
   days?: string;
-  reservedFor?: string;
+  accessTags?: string[];
 }
 
-const RESERVATION_OPTIONS = [
-  { value: "general", label: "General (Everyone)" },
-  { value: "choir", label: "Choir" },
-  { value: "media", label: "Media" },
-  { value: "pastors", label: "Pastors" },
-  { value: "district_pastors", label: "District Pastors" },
-  { value: "elders", label: "Elders" },
-  { value: "ministers", label: "Ministers" },
-  { value: "deacons", label: "Deacons & Deaconess" },
-  { value: "vip", label: "VIP" },
-  { value: "exhorters", label: "Exhorters" },
+const TITLES = [
+  "Child",
+  "Teenager",
+  "Bro",
+  "Sis",
+  "Exhorter",
+  "Deacon",
+  "Deaconess",
+  "Snr Deacon",
+  "Snr Deaconess",
+  "Pastor",
+  "Elders",
+  "Minister",
+  "VIP",
 ];
 
 export default function AccommodationsManager({
@@ -49,11 +55,30 @@ export default function AccommodationsManager({
   const [price, setPrice] = useState("");
   const [slots, setSlots] = useState("");
   const [days, setDays] = useState("1");
-  const [reservedFor, setReservedFor] = useState("general");
+  const [accessTags, setAccessTags] = useState<string[]>([]);
   const [file, setFile] = useState<File | null>(null);
   const [imageUrl, setImageUrl] = useState("");
+  const [departments, setDepartments] = useState<any[]>([]);
 
   const router = useRouter();
+
+  // Fetch departments for tags
+  import("react").then((React) => {
+    React.useEffect(() => {
+      async function fetchDepts() {
+        try {
+          const res = await fetch("/api/admin/departments");
+          if (res.ok) {
+            const data = await res.json();
+            setDepartments(data);
+          }
+        } catch (error) {
+          console.error("Failed to fetch departments", error);
+        }
+      }
+      fetchDepts();
+    }, []);
+  });
 
   const openModal = (acc?: Accommodation) => {
     if (acc) {
@@ -64,7 +89,7 @@ export default function AccommodationsManager({
       setPrice(acc.price);
       setSlots(acc.slots);
       setDays(acc.days || "1");
-      setReservedFor(acc.reservedFor || "general");
+      setAccessTags(acc.accessTags || []);
     } else {
       setIsEditing(false);
       setCurrentId("");
@@ -73,7 +98,7 @@ export default function AccommodationsManager({
       setPrice("");
       setSlots("");
       setDays("1");
-      setReservedFor("general");
+      setAccessTags([]);
       setImageUrl("");
     }
     setFile(null);
@@ -94,7 +119,7 @@ export default function AccommodationsManager({
     formData.append("price", price);
     formData.append("slots", slots);
     formData.append("days", days);
-    formData.append("reservedFor", reservedFor);
+    formData.append("accessTags", JSON.stringify(accessTags));
 
     if (file) {
       formData.append("file", file);
@@ -210,15 +235,28 @@ export default function AccommodationsManager({
                 <p className="text-gray-500 text-sm mt-2 line-clamp-3">
                   {acc.description}
                 </p>
-                <div className="text-sm text-gray-500 mt-2">
-                  Slots: {acc.slots}
-                </div>
-                {acc.reservedFor && acc.reservedFor !== "general" && (
-                  <span className="inline-block mt-2 text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full">
-                    {RESERVATION_OPTIONS.find(
-                      (o) => o.value === acc.reservedFor,
-                    )?.label || acc.reservedFor}
-                  </span>
+                    <div className="flex items-center text-sm text-gray-500 mb-3">
+                      <div className="flex flex-col">
+                         {acc.slots === '0' || !acc.slots ? (
+                             <span className="font-bold text-gray-900">Unlimited Slots</span>
+                         ) : (
+                             <>
+                                <span className="font-bold text-gray-900">{acc.remainingSlots ?? acc.slots} Left</span>
+                                <span className="text-xs text-gray-400">of {acc.slots} total slots</span>
+                             </>
+                         )}
+                      </div>
+                    </div>
+                {acc.accessTags && acc.accessTags.length > 0 ? (
+                  <div className="mt-2 flex flex-wrap gap-1">
+                    {acc.accessTags.map((tag) => (
+                      <span key={tag} className="inline-block text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full">
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="mt-2 text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full inline-block">General</div>
                 )}
 
                 <div className="flex justify-end mt-4 space-x-2">
@@ -301,20 +339,30 @@ export default function AccommodationsManager({
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {acc.slots}
+                        {acc.slots === '0' || !acc.slots ? 'Unlimited' : (
+                           <div className="flex flex-col">
+                             <span className="font-bold text-gray-900">{acc.remainingSlots ?? acc.slots} Left</span>
+                             <span className="text-xs text-gray-400">of {acc.slots} total slots</span>
+                           </div>
+                        )}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <span
-                          className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-                            acc.reservedFor === "general" || !acc.reservedFor
-                              ? "bg-gray-100 text-gray-600"
-                              : "bg-purple-100 text-purple-700"
-                          }`}
-                        >
-                          {RESERVATION_OPTIONS.find(
-                            (o) => o.value === (acc.reservedFor || "general"),
-                          )?.label || "General"}
-                        </span>
+                        {acc.accessTags && acc.accessTags.length > 0 ? (
+                          <div className="flex flex-wrap gap-1 max-w-[200px]">
+                            {acc.accessTags.map((tag) => (
+                              <span
+                                key={tag}
+                                className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-700"
+                              >
+                                {tag}
+                              </span>
+                            ))}
+                          </div>
+                        ) : (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
+                            General
+                          </span>
+                        )}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                         <button
@@ -457,21 +505,77 @@ export default function AccommodationsManager({
                 </div>
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Reserved For
+              <div className="mt-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Access Tags (Who can see this?)
+                  <br />
+                  <span className="text-xs text-gray-500 font-normal">
+                    Leave empty for "General" (visible to everyone). Or select specific roles/departments.
+                  </span>
                 </label>
-                <select
-                  value={reservedFor}
-                  onChange={(e) => setReservedFor(e.target.value)}
-                  className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 text-black"
-                >
-                  {RESERVATION_OPTIONS.map((opt) => (
-                    <option key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </option>
-                  ))}
-                </select>
+                <div className="border rounded-md p-3 max-h-48 overflow-y-auto bg-gray-50 space-y-4">
+                  {/* Titles */}
+                  <div>
+                    <h4 className="text-xs font-bold text-gray-500 mb-2 uppercase">Titles</h4>
+                    <div className="flex flex-wrap gap-2">
+                      {TITLES.map((t) => (
+                        <label key={t} className="inline-flex items-center gap-1 text-sm bg-white border px-2 py-1 rounded shadow-sm hover:bg-gray-50 cursor-pointer text-black">
+                          <input
+                            type="checkbox"
+                            checked={accessTags.includes(t)}
+                            onChange={(e) => {
+                              if (e.target.checked) setAccessTags((prev) => [...prev, t]);
+                              else setAccessTags((prev) => prev.filter((tag) => tag !== t));
+                            }}
+                            className="accent-blue-600 rounded"
+                          />
+                          {t}
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Departments */}
+                  {departments.length > 0 && (
+                    <div>
+                      <h4 className="text-xs font-bold text-gray-500 mb-2 uppercase mt-4">Departments & Sub-Departments</h4>
+                      <div className="flex flex-wrap gap-2">
+                        {departments.map((dept) => (
+                          <div key={dept._id || dept.name} className="flex flex-wrap gap-2 w-full">
+                            <label className="inline-flex items-center gap-1 text-sm bg-blue-50 border border-blue-200 px-2 py-1 rounded shadow-sm hover:bg-blue-100 cursor-pointer text-black">
+                              <input
+                                type="checkbox"
+                                checked={accessTags.includes(dept.name)}
+                                onChange={(e) => {
+                                  if (e.target.checked) setAccessTags((prev) => [...prev, dept.name]);
+                                  else setAccessTags((prev) => prev.filter((tag) => tag !== dept.name));
+                                }}
+                                className="accent-blue-600 rounded"
+                              />
+                              {dept.name}
+                            </label>
+                            
+                            {/* Sub-departments */}
+                            {dept.subDepartments?.map((sub: string) => (
+                              <label key={sub} className="inline-flex items-center gap-1 text-sm bg-white border border-gray-200 px-2 py-1 rounded shadow-sm hover:bg-gray-50 cursor-pointer ml-4 text-black text-xs">
+                                <input
+                                  type="checkbox"
+                                  checked={accessTags.includes(sub)}
+                                  onChange={(e) => {
+                                    if (e.target.checked) setAccessTags((prev) => [...prev, sub]);
+                                    else setAccessTags((prev) => prev.filter((tag) => tag !== sub));
+                                  }}
+                                  className="accent-blue-600 rounded"
+                                />
+                                {sub}
+                              </label>
+                            ))}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
 
               <div>

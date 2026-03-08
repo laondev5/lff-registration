@@ -16,6 +16,7 @@ interface BookingRequest {
   status: string;
   createdAt: string;
   uniqueId: string;
+  isRegistration?: boolean;
 }
 
 export default function BookingRequestsClient({
@@ -178,18 +179,24 @@ export default function BookingRequestsClient({
                     </span>
                   </td>
                   <td className="px-4 py-3 text-right">
-                    <select
-                      disabled={updatingId === booking.id}
-                      value={booking.status}
-                      onChange={(e) =>
-                        handleStatusUpdate(booking.id, e.target.value)
-                      }
-                      className="border-gray-300 rounded-md shadow-sm text-sm p-1 bg-white text-gray-700 font-medium border focus:border-blue-500 focus:ring-blue-500"
-                    >
-                      <option value="Pending">Pending</option>
-                      <option value="Confirmed">Confirmed</option>
-                      <option value="Rejected">Rejected</option>
-                    </select>
+                    {booking.isRegistration ? (
+                        <span className="text-xs text-gray-400 italic">
+                            Managed in Users
+                        </span>
+                    ) : (
+                        <select
+                        disabled={updatingId === booking.id}
+                        value={booking.status}
+                        onChange={(e) =>
+                            handleStatusUpdate(booking.id, e.target.value)
+                        }
+                        className="border-gray-300 rounded-md shadow-sm text-sm p-1 bg-white text-gray-700 font-medium border focus:border-blue-500 focus:ring-blue-500"
+                        >
+                        <option value="Pending">Pending</option>
+                        <option value="Confirmed">Confirmed</option>
+                        <option value="Rejected">Rejected</option>
+                        </select>
+                    )}
                   </td>
                 </tr>
               ))

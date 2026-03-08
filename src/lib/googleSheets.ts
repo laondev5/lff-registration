@@ -287,83 +287,8 @@ export async function getUserById(uniqueId: string) {
 }
 
 // --- Department Functions ---
+// Department storage has been moved to MongoDB.
 
-export async function getDepartments() {
-    const spreadsheetId = process.env.GOOGLE_SHEET_ID;
-    if (!spreadsheetId) throw new Error("Missing GOOGLE_SHEET_ID");
-    const sheets = await getSheetsClient();
-
-    // Sheet: 'Departments'
-    // Columns: A: Id, B: Name, C: SubDepartments (JSON)
-    try {
-        const response = await sheets.spreadsheets.values.get({
-            spreadsheetId,
-            range: 'Departments!A:C',
-        });
-
-        const rows = response.data.values;
-        if (!rows) return [];
-
-        return rows.map((row, index) => ({
-            id: row[0],
-            name: row[1],
-            subDepartments: safeJsonParse(row[2]),
-            rowIndex: index + 1
-        })).filter(d => d.id !== 'ID');
-    } catch (error) {
-        console.warn("Departments sheet might not exist yet.", error);
-        return [];
-    }
-}
-
-export async function addDepartment(name: string, subDepartments: string[]) {
-    const spreadsheetId = process.env.GOOGLE_SHEET_ID;
-    if (!spreadsheetId) throw new Error("Missing GOOGLE_SHEET_ID");
-    const sheets = await getSheetsClient();
-
-    const uniqueId = `DEPT-${Date.now()}`;
-    const row = [
-        uniqueId,
-        name,
-        JSON.stringify(subDepartments)
-    ];
-
-    await sheets.spreadsheets.values.append({
-        spreadsheetId,
-        range: 'Departments!A:C',
-        valueInputOption: 'USER_ENTERED',
-        requestBody: {
-            values: [row]
-        }
-    });
-
-    return uniqueId;
-}
-
-export async function updateDepartment(id: string, name: string, subDepartments: string[]) {
-    const spreadsheetId = process.env.GOOGLE_SHEET_ID;
-    if (!spreadsheetId) throw new Error("Missing GOOGLE_SHEET_ID");
-    const sheets = await getSheetsClient();
-
-    const departments = await getDepartments();
-    const target = departments.find(d => d.id === id);
-    if (!target) throw new Error("Department not found");
-
-    const rowIndex = target.rowIndex;
-
-    const row = [name, JSON.stringify(subDepartments)];
-
-    await sheets.spreadsheets.values.update({
-        spreadsheetId,
-        range: `Departments!B${rowIndex}:C${rowIndex}`,
-        valueInputOption: 'USER_ENTERED',
-        requestBody: {
-            values: [row]
-        }
-    });
-
-    return true;
-}
 
 // --- Admin Functions ---
 

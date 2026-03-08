@@ -102,9 +102,6 @@ const preferencesSchema = z.object({
   busInterest: z.enum(["yes", "no"]),
   mealCollection: z.string().min(1, "Please select a meal collection point"),
   prayerRequest: z.string().optional(),
-  hasPersonalAccommodation: z.enum(["yes", "no"], {
-    error: "Please specify if you have personal accommodation",
-  }),
 });
 
 type PersonalInfo = z.infer<typeof personalInfoSchema>;
@@ -133,6 +130,9 @@ export function RegistrationForm() {
   const [isLoadingAccommodations, setIsLoadingAccommodations] = useState(false);
   const [conventionPartnerAmount, setConventionPartnerAmount] =
     useState<string>("10000");
+  const [departments, setDepartments] = useState<any[]>([]);
+  const [selectedDepartment, setSelectedDepartment] = useState(data.department || "");
+  const [selectedSubDepartment, setSelectedSubDepartment] = useState(data.subDepartment || "");
 
   // Fetch registration account script
   useEffect(() => {
@@ -148,12 +148,29 @@ export function RegistrationForm() {
   useEffect(() => {
     if (currentStep === 3) {
       setIsLoadingAccommodations(true);
-      fetch("/api/accommodations")
+      const tags = [data.title, selectedDepartment, selectedSubDepartment]
+        .filter(Boolean)
+        .join(',');
+      const url = tags ? `/api/accommodations?tags=${encodeURIComponent(tags)}` : '/api/accommodations';
+
+      fetch(url)
         .then((res) => res.json())
         .then((resp) => {
           if (resp.success) setAccommodations(resp.accommodations || []);
         })
         .finally(() => setIsLoadingAccommodations(false));
+    }
+  }, [currentStep]);
+
+  // Fetch departments
+  useEffect(() => {
+    if (currentStep === 2) {
+      fetch("/api/admin/departments")
+        .then((res) => res.json())
+        .then((resp) => {
+          if (resp.success) setDepartments(resp.departments || []);
+        })
+        .catch((err) => console.error("Failed to fetch departments:", err));
     }
   }, [currentStep]);
 
@@ -227,8 +244,6 @@ export function RegistrationForm() {
       busInterest: data.busInterest || undefined,
       mealCollection: data.mealCollection,
       prayerRequest: data.prayerRequest,
-      hasPersonalAccommodation:
-        (data.hasPersonalAccommodation as "yes" | "no") || undefined,
     },
   });
 
@@ -244,19 +259,12 @@ export function RegistrationForm() {
   };
 
   const onNextPreferences = (formData: Preferences) => {
-    if (formData.hasPersonalAccommodation === "yes") {
-      updateData({
-        ...formData,
-        needsAccommodation: false,
-        accommodationType: "",
-        accommodationPrice: "",
-        accommodationId: "",
-      });
-      setStep(4);
-    } else {
-      updateData(formData);
-      nextStep(); // Go to Accommodation step (step 3)
-    }
+    updateData({
+      ...formData,
+      department: selectedDepartment,
+      subDepartment: selectedSubDepartment,
+    });
+    nextStep(); // Always go to Accommodation step (step 3)
   };
 
   // Step 4: Manual Payment Submission
@@ -305,6 +313,8 @@ export function RegistrationForm() {
         : "",
       registrationType: regType,
       registrationAmount: regAmount.toLocaleString(),
+      department: data.department || "",
+      subDepartment: data.subDepartment || "",
     };
 
     try {
@@ -357,11 +367,9 @@ export function RegistrationForm() {
   const handleRegisterAnother = () => {
     reset();
     setIsConventionPartner(false);
-    // Remove query parameters like uniqueId and status to prevent re-triggering success
-    router.replace("/");
-    setTimeout(() => {
-      setStep(0);
-    }, 100);
+    // Hard reload to fully re-mount the component and re-initialize react-hook-form
+    // This prevents stale defaultValues from the previous registration
+    window.location.href = "/";
   };
 
   // ─── Rendering ─────────────────────────────────────
@@ -371,7 +379,7 @@ export function RegistrationForm() {
 
   return (
     <div className="bg-black/60 text-white p-6 md:p-8 rounded-xl w-full min-h-[450px] relative overflow-hidden shadow-2xl border border-white/10 backdrop-blur-md">
-      {/* ─── Progress Stepper ─────────────── */}
+      
       {showStepper && (
         <div className="mb-8">
           <div className="flex justify-between relative">
@@ -805,37 +813,54 @@ export function RegistrationForm() {
             />
           </div>
 
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-gray-300">
-              Do you have your own personal accommodation?{" "}
-              <span className="text-red-400">*</span>
-            </label>
-            <div className="flex gap-4">
-              <label className="radio-option">
-                <input
-                  type="radio"
-                  {...regPref("hasPersonalAccommodation")}
-                  value="yes"
-                  className="accent-primary w-4 h-4"
-                />
-                <span>Yes</span>
-              </label>
-              <label className="radio-option">
-                <input
-                  type="radio"
-                  {...regPref("hasPersonalAccommodation")}
-                  value="no"
-                  className="accent-primary w-4 h-4"
-                />
-                <span>No</span>
-              </label>
+          {/* Department Selection (Optional) */}
+          {departments.length > 0 && (
+            <div className="space-y-3">
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium text-gray-300">
+                  Department (Optional)
+                </label>
+                <select
+                  value={selectedDepartment}
+                  onChange={(e) => {
+                    setSelectedDepartment(e.target.value);
+                    setSelectedSubDepartment("");
+                  }}
+                  className="form-input"
+                >
+                  <option value="">Select a department</option>
+                  {departments.map((dept: any) => (
+                    <option key={dept.id} value={dept.name}>
+                      {dept.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {selectedDepartment && (() => {
+                const dept = departments.find((d: any) => d.name === selectedDepartment);
+                return dept && dept.subDepartments && dept.subDepartments.length > 0 ? (
+                  <div className="space-y-1.5">
+                    <label className="text-sm font-medium text-gray-300">
+                      Sub-Department
+                    </label>
+                    <select
+                      value={selectedSubDepartment}
+                      onChange={(e) => setSelectedSubDepartment(e.target.value)}
+                      className="form-input"
+                    >
+                      <option value="">Select a sub-department</option>
+                      {dept.subDepartments.map((sub: string, idx: number) => (
+                        <option key={idx} value={sub}>
+                          {sub}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                ) : null;
+              })()}
             </div>
-            {errPref.hasPersonalAccommodation && (
-              <p className="text-red-400 text-xs">
-                {errPref.hasPersonalAccommodation.message}
-              </p>
-            )}
-          </div>
+          )}
 
           <div className="pt-4 flex justify-between">
             <button type="button" onClick={prevStep} className="btn-ghost">
@@ -853,101 +878,168 @@ export function RegistrationForm() {
         <div className="space-y-5 animate-in fade-in slide-in-from-right-4 duration-300">
           <div>
             <h3 className="text-xl font-bold text-white mb-1">
-              Accommodation Options
+              Accommodation
             </h3>
             <p className="text-gray-400 text-sm">
-              Please select your preferred accommodation.
-            </p>
-            <p className="text-primary text-sm mt-1 font-medium">
-              All accommodation outside the camp has transportation included.
+              Do you need accommodation for GAC 2026?
             </p>
           </div>
 
-          {isLoadingAccommodations ? (
-            <div className="flex justify-center py-8">
-              <Loader2 className="w-8 h-8 animate-spin text-primary" />
-            </div>
-          ) : (
-            <>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-                {accommodations.map((acc) => (
-                  <div
-                    key={acc.id}
-                    onClick={() => {
-                      if (acc.isFullyBooked) {
-                        toast.error("This accommodation is fully booked.");
-                        return;
-                      }
-                      updateData({
-                        needsAccommodation: true,
-                        accommodationType: acc.title.trim(),
-                        accommodationPrice: acc.price,
-                        accommodationId: acc.id,
-                      });
-                    }}
-                    className={`border rounded-xl p-4 cursor-pointer relative overflow-hidden transition-all ${
-                      data.accommodationId === acc.id
-                        ? "border-primary bg-primary/5 ring-2 ring-primary/20"
-                        : "border-white/10 hover:border-primary/50"
-                    } ${acc.isFullyBooked ? "opacity-50 cursor-not-allowed" : ""}`}
-                  >
-                    {acc.isFullyBooked && (
-                      <div className="absolute inset-0 bg-black/50 flex flex-col items-center justify-center text-white z-10 backdrop-blur-[2px]">
-                        <span className="font-bold text-lg tracking-wider bg-red-600 px-3 py-1 rounded">
-                          FULLY BOOKED
-                        </span>
-                      </div>
-                    )}
-                    {acc.imageUrl && !acc.imageUrl.includes("placehold.co") && (
-                      <div className="w-full h-32 bg-white/10 rounded-lg mb-3 overflow-hidden">
-                        <img
-                          src={acc.imageUrl}
-                          alt={acc.title}
-                          className="w-full h-full object-cover"
-                        />
-                      </div>
-                    )}
-                    <h4 className="font-bold text-white">{acc.title}</h4>
-                    <div className="flex justify-between items-center mt-1">
-                      <p className="text-primary font-semibold">
-                        {acc.price === "Free"
-                          ? "Free"
-                          : `₦${acc.price} for ${(acc as any).days || "1"} day(s)`}
-                      </p>
-                      {acc.slots && (
-                        <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-white/10 text-gray-300">
-                          {Math.max(
-                            0,
-                            parseInt(acc.slots) - (acc.bookedSlots || 0),
-                          )}{" "}
-                          slots left
-                        </span>
-                      )}
-                    </div>
-                    <p className="text-xs text-gray-400 mt-2 line-clamp-2">
-                      {acc.description}
-                    </p>
-                  </div>
-                ))}
-              </div>
-
-              <div className="flex items-center justify-center pt-2 mt-4">
-                <button
-                  type="button"
-                  onClick={() => {
+          {/* Accommodation question */}
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-gray-300">
+              Do you have your own personal accommodation?{" "}
+              <span className="text-red-400">*</span>
+            </label>
+            <div className="flex gap-4">
+              <label className="radio-option">
+                <input
+                  type="radio"
+                  name="hasPersonalAccommodation"
+                  value="yes"
+                  checked={data.hasPersonalAccommodation === "yes"}
+                  onChange={() => {
                     updateData({
+                      hasPersonalAccommodation: "yes",
                       needsAccommodation: false,
                       accommodationType: "",
                       accommodationPrice: "",
                       accommodationId: "",
                     });
-                    nextStep();
                   }}
-                  className="text-gray-400 text-sm hover:text-white underline"
-                >
-                  Skip Accommodation & Continue
-                </button>
+                  className="accent-primary w-4 h-4"
+                />
+                <span>Yes</span>
+              </label>
+              <label className="radio-option">
+                <input
+                  type="radio"
+                  name="hasPersonalAccommodation"
+                  value="no"
+                  checked={data.hasPersonalAccommodation === "no"}
+                  onChange={() => {
+                    updateData({
+                      hasPersonalAccommodation: "no",
+                      needsAccommodation: true,
+                    });
+                  }}
+                  className="accent-primary w-4 h-4"
+                />
+                <span>No, I need accommodation</span>
+              </label>
+            </div>
+          </div>
+
+          {/* If yes — skip accommodation selection */}
+          {data.hasPersonalAccommodation === "yes" && (
+            <div className="bg-green-500/10 border border-green-500/20 rounded-xl p-4 text-center">
+              <p className="text-green-400 text-sm font-medium mb-3">
+                Great! You have your own accommodation. You can proceed to payment.
+              </p>
+              <button
+                type="button"
+                onClick={() => setStep(4)}
+                className="btn-primary"
+              >
+                Continue to Payment <ChevronRight className="w-4 h-4 ml-2" />
+              </button>
+            </div>
+          )}
+
+          {data.hasPersonalAccommodation === "no" && (
+            <>
+              <div>
+                <p className="text-gray-400 text-sm">
+                  Please select your preferred accommodation.
+                </p>
+                <p className="text-primary text-sm mt-1 font-medium">
+                  All accommodation outside the camp has transportation included.
+                </p>
               </div>
+
+              {isLoadingAccommodations ? (
+                <div className="flex justify-center py-8">
+                  <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                </div>
+              ) : (
+                <>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                    {accommodations.map((acc) => (
+                      <div
+                        key={acc.id}
+                        onClick={() => {
+                          if (acc.isFullyBooked) {
+                            toast.error("This accommodation is fully booked.");
+                            return;
+                          }
+                          updateData({
+                            needsAccommodation: true,
+                            accommodationType: acc.title.trim(),
+                            accommodationPrice: acc.price,
+                            accommodationId: acc.id,
+                          });
+                        }}
+                        className={`border rounded-xl p-4 cursor-pointer relative overflow-hidden transition-all ${
+                          data.accommodationId === acc.id
+                            ? "border-primary bg-primary/5 ring-2 ring-primary/20"
+                            : "border-white/10 hover:border-primary/50"
+                        } ${acc.isFullyBooked ? "opacity-50 cursor-not-allowed" : ""}`}
+                      >
+                        {acc.isFullyBooked && (
+                          <div className="absolute inset-0 bg-black/50 flex flex-col items-center justify-center text-white z-10 backdrop-blur-[2px]">
+                            <span className="font-bold text-lg tracking-wider bg-red-600 px-3 py-1 rounded">
+                              FULLY BOOKED
+                            </span>
+                          </div>
+                        )}
+                        {acc.imageUrl && !acc.imageUrl.includes("placehold.co") && (
+                          <div className="w-full h-32 bg-white/10 rounded-lg mb-3 overflow-hidden">
+                            <img
+                              src={acc.imageUrl}
+                              alt={acc.title}
+                              className="w-full h-full object-cover"
+                            />
+                          </div>
+                        )}
+                        <h4 className="font-bold text-white">{acc.title}</h4>
+                        <div className="flex justify-between items-center mt-1">
+                          <p className="text-primary font-semibold">
+                            {acc.price === "Free"
+                              ? "Free"
+                              : `₦${acc.price} for ${(acc as any).days || "1"} day(s)`}
+                          </p>
+                          {(acc.slots === '0' || !acc.slots) ? null : (
+                            <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-white/10 text-gray-300">
+                              {acc.remainingSlots ?? acc.slots} slots left
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-xs text-gray-400 mt-2 line-clamp-2">
+                          {acc.description}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="flex items-center justify-center pt-2 mt-4">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        updateData({
+                          needsAccommodation: false,
+                          accommodationType: "",
+                          accommodationPrice: "",
+                          accommodationId: "",
+                        });
+                        nextStep();
+                      }}
+                      className="text-gray-400 text-sm hover:text-white underline"
+                    >
+                      Skip Accommodation & Continue
+                    </button>
+                  </div>
+                </>
+              )}
             </>
           )}
 
@@ -955,21 +1047,23 @@ export function RegistrationForm() {
             <button type="button" onClick={prevStep} className="btn-ghost">
               <ChevronLeft className="w-4 h-4 mr-2" /> Back
             </button>
-            <button
-              type="button"
-              onClick={() => {
-                if (!data.accommodationId) {
-                  alert(
-                    "Please select an accommodation or choose 'Skip Accommodation & Continue'",
-                  );
-                  return;
-                }
-                nextStep();
-              }}
-              className="btn-primary"
-            >
-              Next <ChevronRight className="w-4 h-4 ml-2" />
-            </button>
+            {data.hasPersonalAccommodation === "no" && (
+              <button
+                type="button"
+                onClick={() => {
+                  if (!data.accommodationId) {
+                    alert(
+                      "Please select an accommodation or choose 'Skip Accommodation & Continue'",
+                    );
+                    return;
+                  }
+                  nextStep();
+                }}
+                className="btn-primary"
+              >
+                Next <ChevronRight className="w-4 h-4 ml-2" />
+              </button>
+            )}
           </div>
         </div>
       )}

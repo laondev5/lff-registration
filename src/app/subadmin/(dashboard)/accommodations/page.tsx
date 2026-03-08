@@ -1,9 +1,9 @@
-import { getAccommodations } from "@/lib/accommodationService";
+import { getAccommodationsWithAvailability } from "@/lib/accommodationService";
 
 export const dynamic = "force-dynamic";
 
 export default async function SubAdminAccommodationsPage() {
-  const accommodations = await getAccommodations();
+  const accommodations = await getAccommodationsWithAvailability();
 
   return (
     <div>
@@ -56,7 +56,12 @@ export default async function SubAdminAccommodationsPage() {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="text-sm text-gray-900">
-                      {acc.slots || "N/A"}
+                      {acc.slots === '0' || !acc.slots ? 'Unlimited' : (
+                         <div className="flex flex-col">
+                           <span className="font-bold">{acc.remainingSlots ?? acc.slots} Left</span>
+                           <span className="text-xs text-gray-500">of {acc.slots} total slots</span>
+                         </div>
+                      )}
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">

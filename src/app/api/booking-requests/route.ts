@@ -1,11 +1,13 @@
 import { NextResponse } from 'next/server';
-import { getBookingRequests, createBookingRequest } from '@/lib/googleSheets';
 import { uploadToCloudinary } from '@/lib/cloudinary';
+import { connectDB } from '@/lib/mongodb';
+import Booking from '@/models/Booking';
+import { getAllBookings } from '@/lib/bookingService';
 
 export async function GET() {
     try {
-        const bookings = await getBookingRequests();
-        return NextResponse.json(bookings);
+        const combined = await getAllBookings();
+        return NextResponse.json(combined);
     } catch (error: any) {
         return NextResponse.json({ error: error.message }, { status: 500 });
     }
@@ -37,7 +39,8 @@ export async function POST(request: Request) {
             paymentProofUrl = uploadResult.url;
         }
 
-        const bookingId = await createBookingRequest({
+        await connectDB();
+        const newBooking = await Booking.create({
             name,
             email,
             phone,
@@ -48,7 +51,7 @@ export async function POST(request: Request) {
             uniqueId: uniqueId || '',
         });
 
-        return NextResponse.json({ success: true, id: bookingId });
+        return NextResponse.json({ success: true, id: newBooking._id.toString() });
     } catch (error: any) {
         console.error("Booking request error:", error);
         return NextResponse.json({ success: false, error: error.message }, { status: 500 });

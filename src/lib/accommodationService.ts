@@ -2,6 +2,7 @@ import mongoose from 'mongoose';
 import { connectDB } from './mongodb';
 import Accommodation, { IAccommodation } from '@/models/Accommodation';
 import Registration from '@/models/Registration';
+import Booking from '@/models/Booking';
 import {
     getAccommodations as sheetsGetAccommodations,
     getAccommodationsWithAvailability as sheetsGetAccommodationsWithAvailability,
@@ -19,7 +20,7 @@ function formatAccommodation(a: IAccommodation | any) {
         imageUrl: a.imageUrl,
         slots: a.slots,
         days: a.days,
-        reservedFor: a.reservedFor || 'general',
+        accessTags: Array.isArray(a.accessTags) ? a.accessTags : [],
         createdAt: a.createdAt?.toISOString?.() || a.createdAt,
         fileId: a.fileId,
         sheetId: a.sheetId || '',
@@ -37,58 +38,64 @@ export async function getAccommodationsWithAvailability() {
     const accommodations = await getAccommodations();
     
     // Count how many registrations have booked this accommodation
-    const users = await Registration.find({
-        needsAccommodation: 'Yes'
+    // We only count it if they need accommodation and have actually chosen a type
+    const regUsers = await Registration.find({
+        needsAccommodation: 'Yes',
+        accommodationType: { $exists: true, $ne: '' }
+    }).lean();
+
+    // Also count independent bookings
+    const bookings = await Booking.find({
+        accommodationType: { $exists: true, $ne: '' }
     }).lean();
 
     return accommodations.map(acc => {
-        // We match by title since that's what usually goes into accommodationType
-        const bookedSlots = users.filter((user: any) => (user.accommodationType || '').trim() === acc.title.trim()).length;
+        const titleMatch = acc.title.trim().toLowerCase();
+        
+        // Count from registrations
+        const regBookedSlots = regUsers.filter((user: any) => 
+            (user.accommodationType || '').trim().toLowerCase() === titleMatch
+        ).length;
+
+        // Count from independent bookings
+        const indBookedSlots = bookings.filter((b: any) => 
+            (b.accommodationType || '').trim().toLowerCase() === titleMatch ||
+            b.accommodationId === acc.id
+        ).length;
+
+        const bookedSlots = regBookedSlots + indBookedSlots;
         const totalSlots = parseInt(acc.slots || '0', 10);
+        
+        let remainingSlots = totalSlots - bookedSlots;
+        if (remainingSlots < 0) remainingSlots = 0; // Prevent negative remaining slots visually
         
         return {
             ...acc,
             bookedSlots,
-            isFullyBooked: totalSlots === 0 || bookedSlots >= totalSlots
+            remainingSlots,
+            isFullyBooked: totalSlots <= 0 || bookedSlots >= totalSlots
         };
     });
 }
 
-// Title-to-reservation group mapping
-const TITLE_TO_RESERVATION_GROUPS: Record<string, string[]> = {
-    'Child': ['general'],
-    'Teenager': ['general'],
-    'Bro': ['general'],
-    'Sis': ['general'],
-    'Exhorter': ['general', 'exhorters'],
-    'Deacon': ['general', 'deacons'],
-    'Deaconess': ['general', 'deacons'],
-    'Snr Deacon': ['general', 'deacons'],
-    'Snr Deaconess': ['general', 'deacons'],
-    'Pastor': ['general', 'pastors'],
-    'District Pastor': ['general', 'pastors', 'district_pastors'],
-    'Elders': ['general', 'elders'],
-    'Minister': ['general', 'ministers'],
-    'VIP': ['general', 'vip'],
-};
-
-export async function getAccommodationsForUser(title: string, department?: string) {
+export async function getAccommodationsForUser(userTags: string[]) {
     const allAccommodations = await getAccommodationsWithAvailability();
     
-    // Get groups this user can access based on title
-    const allowedGroups = new Set(TITLE_TO_RESERVATION_GROUPS[title] || ['general']);
+    // Clean and lower case user tags
+    const cleanUserTags = userTags.map(t => t?.trim().toLowerCase()).filter(Boolean);
     
-    // Add department-based groups
-    if (department) {
-        const deptLower = department.toLowerCase();
-        if (deptLower.includes('choir')) allowedGroups.add('choir');
-        if (deptLower.includes('media')) allowedGroups.add('media');
-    }
-    
-    // Filter accommodations: show if reservedFor is in user's allowed groups
+    // Filter accommodations
     return allAccommodations.filter(acc => {
-        const reservedFor = acc.reservedFor || 'general';
-        return allowedGroups.has(reservedFor);
+        const accessTags = Array.isArray(acc.accessTags) ? acc.accessTags : [];
+        
+        // If no access tags are defined, it's general accommodation, everyone sees it
+        if (accessTags.length === 0) return true;
+        
+        // If there are tags, user must have at least one matching tag
+        return accessTags.some(tag => {
+            const cleanTag = typeof tag === 'string' ? tag.trim().toLowerCase() : '';
+            return cleanUserTags.includes(cleanTag);
+        });
     });
 }
 
@@ -105,7 +112,7 @@ export async function addAccommodation(data: any) {
         slots: data.slots || '0',
         days: data.days || '1',
         fileId: data.fileId || '',
-        reservedFor: data.reservedFor || 'general',
+        accessTags: Array.isArray(data.accessTags) ? data.accessTags : [],
     });
 
     try {
@@ -131,7 +138,7 @@ export async function updateAccommodationListing(id: string, data: any) {
     if (data.slots !== undefined) acc.slots = data.slots;
     if (data.days !== undefined) acc.days = data.days;
     if (data.fileId !== undefined) acc.fileId = data.fileId;
-    if (data.reservedFor !== undefined) acc.reservedFor = data.reservedFor;
+    if (data.accessTags !== undefined) acc.accessTags = data.accessTags;
 
     await acc.save();
 

@@ -6,6 +6,7 @@ import {
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
+import Link from "next/link";
 
 interface User {
   uniqueId: string;
@@ -66,9 +67,12 @@ export default function SubAdminUsersTable({ users }: { users: User[] }) {
             {paginatedUsers.map((user) => (
               <tr key={user.uniqueId} className="hover:bg-gray-50">
                 <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="text-sm font-medium text-gray-900">
+                  <Link
+                    href={`/subadmin/users/${user.uniqueId}`}
+                    className="text-sm font-medium text-blue-600 hover:text-blue-800 hover:underline"
+                  >
                     {user.fullName}
-                  </div>
+                  </Link>
                   <div className="text-xs text-gray-400">{user.uniqueId}</div>
                   <div className="text-sm text-gray-500">{user.gender}</div>
                 </td>
