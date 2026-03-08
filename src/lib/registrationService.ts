@@ -61,6 +61,16 @@ export async function appendRegistration(data: any) {
     await connectDB();
     const uniqueId = `LFF-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
 
+    // Check for duplicate email
+    if (data.email) {
+        const existing = await Registration.findOne({
+            email: new RegExp('^' + data.email.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '$', 'i')
+        });
+        if (existing) {
+            throw new Error(`A registration with email "${data.email}" already exists. Registration ID: ${existing.uniqueId}`);
+        }
+    }
+
     const reg = await Registration.create({
         uniqueId,
         title: data.title || '',

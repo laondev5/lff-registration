@@ -1207,6 +1207,12 @@ export function RegistrationForm() {
               Continue <ChevronRight className="w-5 h-5 ml-2" />
             </button>
             <button
+              onClick={() => router.push("/convention-partner")}
+              className="w-full bg-gradient-to-r from-amber-500/20 to-primary/20 border border-amber-500/30 text-amber-400 px-8 py-4 rounded-xl font-bold text-lg hover:from-amber-500/30 hover:to-primary/30 transition-all flex items-center justify-center gap-2"
+            >
+              ❤️ Become a Convention Partner
+            </button>
+            <button
               onClick={handleRegisterAnother}
               className="w-full bg-white/5 border border-dashed border-white/20 text-gray-300 px-8 py-4 rounded-xl font-bold text-lg hover:bg-white/10 hover:text-white transition-all flex items-center justify-center gap-2"
             >

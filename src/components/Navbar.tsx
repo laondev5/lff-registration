@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ShoppingCart, Users } from "lucide-react";
+import { ShoppingCart, Users, Heart } from "lucide-react";
 import { useCartStore } from "@/store/useCartStore";
 import { useEffect, useState } from "react";
 
@@ -59,6 +59,14 @@ export function Navbar() {
                 className="text-gray-300 hover:text-white transition-colors text-sm font-medium"
               >
                 Accommodations
+              </Link>
+
+              <Link
+                href="/convention-partner"
+                className="text-gray-300 hover:text-white transition-colors text-sm font-medium flex items-center gap-1.5"
+              >
+                <Heart className="w-4 h-4" />
+                Convention Partner
               </Link>
             </>
           )}

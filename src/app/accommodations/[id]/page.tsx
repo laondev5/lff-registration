@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useRegistrationStore } from "@/store/useRegistrationStore";
 import { ChevronLeft, Check, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { EmailLookupModal } from "@/components/EmailLookupModal";
 
 export default function AccommodationDetailPage({
   params,
@@ -23,6 +24,7 @@ export default function AccommodationDetailPage({
   const [bookingLoading, setBookingLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState("");
+  const [showLookupModal, setShowLookupModal] = useState(false);
 
   useEffect(() => {
     async function fetchAcc() {
@@ -43,6 +45,13 @@ export default function AccommodationDetailPage({
   }, [id]);
 
   const uniqueId = userData.uniqueId;
+
+  // Show lookup modal if no uniqueId
+  useEffect(() => {
+    if (!loading && accommodation && !uniqueId) {
+      setShowLookupModal(true);
+    }
+  }, [loading, accommodation, uniqueId]);
 
   const handleBook = async () => {
     if (!accommodation) return;
@@ -109,32 +118,22 @@ export default function AccommodationDetailPage({
     );
   }
 
-  if (!uniqueId) {
-    return (
-      <div className="min-h-screen flex items-center justify-center text-white bg-background p-4">
-        <div className="max-w-md text-center p-8 bg-card border border-white/10 rounded-xl">
-          <h1 className="text-2xl font-bold mb-4">Registration Required</h1>
-          <p className="text-gray-400 mb-6">
-            You must register for the conference before booking an
-            accommodation.
-          </p>
-          <Link
-            href="/"
-            className="inline-block bg-primary text-primary-foreground px-6 py-3 rounded-lg font-bold hover:opacity-90"
-          >
-            Go to Registration
-          </Link>
-        </div>
-      </div>
-    );
-  }
-
   // Parse price for display
   const displayPrice =
     parseInt(accommodation.price.replace(/[^0-9]/g, "")) || 0;
 
+  // Show the modal overlay if no uniqueId, but still render the page behind it
+  const renderLookupModal = !uniqueId && (
+    <EmailLookupModal
+      isOpen={showLookupModal}
+      onClose={() => router.push("/accommodations")}
+      onFound={() => setShowLookupModal(false)}
+    />
+  );
+
   return (
     <main className="min-h-screen bg-background text-foreground py-16 px-4">
+      {renderLookupModal}
       <div className="container mx-auto max-w-4xl">
         <Link
           href="/accommodations"

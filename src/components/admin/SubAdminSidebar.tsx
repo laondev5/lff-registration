@@ -2,14 +2,17 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { LayoutDashboard, Users, Home, LogOut, Menu, X } from "lucide-react";
+import {
+  LayoutDashboard,
+  Users,
+  Home,
+  LogOut,
+  Menu,
+  X,
+} from "lucide-react";
 import { usePathname } from "next/navigation";
 
-export function SubAdminSidebar({
-  onLogout,
-}: {
-  onLogout: () => Promise<void>;
-}) {
+export function SubAdminSidebar({ onLogout }: { onLogout: () => Promise<void> }) {
   const [isOpen, setIsOpen] = useState(false);
   const pathname = usePathname();
 
@@ -44,7 +47,7 @@ export function SubAdminSidebar({
         <div className="p-6 border-b flex items-center justify-between md:justify-start">
           <div>
             <h1 className="text-xl font-bold text-gray-800">Sub-Admin</h1>
-            <p className="text-xs text-gray-400">View Only</p>
+            <p className="text-xs text-gray-500">View Only Access</p>
           </div>
           <button
             onClick={closeSidebar}

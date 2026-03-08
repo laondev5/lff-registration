@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import {
   Loader2,
@@ -11,6 +11,7 @@ import {
   ChevronLeft,
   ChevronDown,
   ChevronUp,
+  Home,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -62,6 +63,16 @@ const TITLE_TO_REG: Record<
   VIP: { type: "vip", label: "VIP", amount: 10000 },
 };
 
+interface Accommodation {
+  id: string;
+  title: string;
+  price: string;
+  description: string;
+  imageUrl: string;
+  slots: string;
+  isFullyBooked?: boolean;
+}
+
 interface Registrant {
   id: string;
   title: string;
@@ -79,7 +90,11 @@ interface Registrant {
   busInterest: string;
   mealCollection: string;
   prayerRequest: string;
+  hasPersonalAccommodation: string;
   needsAccommodation: boolean;
+  accommodationType: string;
+  accommodationPrice: string;
+  accommodationId: string;
 }
 
 const emptyRegistrant = (): Registrant => ({
@@ -99,7 +114,11 @@ const emptyRegistrant = (): Registrant => ({
   busInterest: "",
   mealCollection: "",
   prayerRequest: "",
+  hasPersonalAccommodation: "",
   needsAccommodation: false,
+  accommodationType: "",
+  accommodationPrice: "",
+  accommodationId: "",
 });
 
 export default function BulkRegistrationPage() {
@@ -111,6 +130,23 @@ export default function BulkRegistrationPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
+  const [accommodations, setAccommodations] = useState<Accommodation[]>([]);
+
+  // Fetch accommodations on mount
+  useEffect(() => {
+    async function fetchAccommodations() {
+      try {
+        const res = await fetch("/api/accommodations");
+        const data = await res.json();
+        if (data.success) {
+          setAccommodations(data.accommodations || []);
+        }
+      } catch (e) {
+        console.error("Failed to fetch accommodations:", e);
+      }
+    }
+    fetchAccommodations();
+  }, []);
 
   const toggleCollapse = (id: string) => {
     setCollapsed((prev) => ({ ...prev, [id]: !prev[id] }));
@@ -140,8 +176,9 @@ export default function BulkRegistrationPage() {
 
   const getRegInfo = (title: string) => TITLE_TO_REG[title] || null;
 
-  const { totalAmount, breakdown } = useMemo(() => {
+  const { totalAmount, breakdown, accommodationTotal } = useMemo(() => {
     let total = 0;
+    let accTotal = 0;
     const counts: Record<string, { count: number; amount: number }> = {};
 
     registrants.forEach((r) => {
@@ -153,9 +190,17 @@ export default function BulkRegistrationPage() {
         }
         counts[info.label].count++;
       }
+      // Add accommodation price
+      if (r.needsAccommodation && r.accommodationPrice) {
+        const accPrice = parseFloat(r.accommodationPrice.replace(/[^0-9.-]+/g, ""));
+        if (!isNaN(accPrice)) {
+          total += accPrice;
+          accTotal += accPrice;
+        }
+      }
     });
 
-    return { totalAmount: total, breakdown: counts };
+    return { totalAmount: total, breakdown: counts, accommodationTotal: accTotal };
   }, [registrants]);
 
   const isValid = useMemo(() => {
@@ -208,6 +253,8 @@ export default function BulkRegistrationPage() {
           mealCollection: r.mealCollection,
           prayerRequest: r.prayerRequest,
           needsAccommodation: r.needsAccommodation,
+          accommodationType: r.needsAccommodation ? r.accommodationType : "",
+          accommodationPrice: r.needsAccommodation ? r.accommodationPrice : "",
           registrationType: info.type,
           registrationAmount: info.amount.toLocaleString(),
         };
@@ -807,6 +854,169 @@ export default function BulkRegistrationPage() {
                         </div>
                       </div>
                     </div>
+
+                    {/* ── Accommodation ── */}
+                    <div>
+                      <h4 className="text-sm font-bold text-white mb-3 flex items-center gap-2">
+                        <span className="w-6 h-6 bg-primary/20 rounded-full flex items-center justify-center text-xs text-primary font-bold">
+                          4
+                        </span>
+                        Accommodation
+                      </h4>
+                      <div className="space-y-4">
+                        <div className="space-y-2">
+                          <label className="text-sm font-medium text-gray-300">
+                            Do you have personal accommodation?{" "}
+                            <span className="text-red-400">*</span>
+                          </label>
+                          <div className="flex gap-4">
+                            <label className="radio-option">
+                              <input
+                                type="radio"
+                                name={`acc-${registrant.id}`}
+                                value="yes"
+                                checked={
+                                  registrant.hasPersonalAccommodation === "yes"
+                                }
+                                onChange={() => {
+                                  updateRegistrant(
+                                    registrant.id,
+                                    "hasPersonalAccommodation",
+                                    "yes",
+                                  );
+                                  updateRegistrant(
+                                    registrant.id,
+                                    "needsAccommodation",
+                                    false,
+                                  );
+                                  updateRegistrant(
+                                    registrant.id,
+                                    "accommodationType",
+                                    "",
+                                  );
+                                  updateRegistrant(
+                                    registrant.id,
+                                    "accommodationPrice",
+                                    "",
+                                  );
+                                  updateRegistrant(
+                                    registrant.id,
+                                    "accommodationId",
+                                    "",
+                                  );
+                                }}
+                                className="accent-primary w-4 h-4"
+                              />
+                              <span>Yes</span>
+                            </label>
+                            <label className="radio-option">
+                              <input
+                                type="radio"
+                                name={`acc-${registrant.id}`}
+                                value="no"
+                                checked={
+                                  registrant.hasPersonalAccommodation === "no"
+                                }
+                                onChange={() => {
+                                  updateRegistrant(
+                                    registrant.id,
+                                    "hasPersonalAccommodation",
+                                    "no",
+                                  );
+                                  updateRegistrant(
+                                    registrant.id,
+                                    "needsAccommodation",
+                                    true,
+                                  );
+                                }}
+                                className="accent-primary w-4 h-4"
+                              />
+                              <span>No, I need accommodation</span>
+                            </label>
+                          </div>
+                        </div>
+
+                        {registrant.hasPersonalAccommodation === "no" && (
+                          <div className="space-y-1.5">
+                            <label className="text-sm font-medium text-gray-300">
+                              Select Accommodation{" "}
+                              <span className="text-red-400">*</span>
+                            </label>
+                            <select
+                              value={registrant.accommodationId}
+                              onChange={(e) => {
+                                const selectedAcc = accommodations.find(
+                                  (a) => a.id === e.target.value,
+                                );
+                                if (selectedAcc) {
+                                  updateRegistrant(
+                                    registrant.id,
+                                    "accommodationId",
+                                    selectedAcc.id,
+                                  );
+                                  updateRegistrant(
+                                    registrant.id,
+                                    "accommodationType",
+                                    selectedAcc.title,
+                                  );
+                                  updateRegistrant(
+                                    registrant.id,
+                                    "accommodationPrice",
+                                    selectedAcc.price,
+                                  );
+                                } else {
+                                  updateRegistrant(
+                                    registrant.id,
+                                    "accommodationId",
+                                    "",
+                                  );
+                                  updateRegistrant(
+                                    registrant.id,
+                                    "accommodationType",
+                                    "",
+                                  );
+                                  updateRegistrant(
+                                    registrant.id,
+                                    "accommodationPrice",
+                                    "",
+                                  );
+                                }
+                              }}
+                              className="form-input text-gray-600"
+                            >
+                              <option value="" className="text-gray-600">
+                                Select accommodation
+                              </option>
+                              {accommodations
+                                .filter((a) => !a.isFullyBooked)
+                                .map((acc) => (
+                                  <option
+                                    key={acc.id}
+                                    value={acc.id}
+                                    className="text-gray-600"
+                                  >
+                                    {acc.title} — ₦
+                                    {parseInt(
+                                      acc.price.replace(/[^0-9]/g, ""),
+                                    ).toLocaleString()}
+                                  </option>
+                                ))}
+                            </select>
+                            {registrant.accommodationType && (
+                              <p className="text-xs text-primary">
+                                Selected: {registrant.accommodationType} — ₦
+                                {parseInt(
+                                  registrant.accommodationPrice.replace(
+                                    /[^0-9]/g,
+                                    "",
+                                  ),
+                                ).toLocaleString()}
+                              </p>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </div>
                   </div>
                 )}
               </div>
@@ -836,6 +1046,15 @@ export default function BulkRegistrationPage() {
                   <span>₦{(info.count * info.amount).toLocaleString()}</span>
                 </div>
               ))}
+              {accommodationTotal > 0 && (
+                <div className="flex justify-between text-gray-300">
+                  <span>
+                    <Home className="w-3 h-3 inline mr-1" />
+                    Accommodation
+                  </span>
+                  <span>₦{accommodationTotal.toLocaleString()}</span>
+                </div>
+              )}
               <div className="border-t border-white/10 pt-2 flex justify-between text-white font-bold text-lg">
                 <span>Total ({registrants.length} people)</span>
                 <span className="text-primary">

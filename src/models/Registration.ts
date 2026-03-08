@@ -38,7 +38,7 @@ const RegistrationSchema = new Schema({
     uniqueId: { type: String, required: true, unique: true },
     title: { type: String, default: '' },
     fullName: { type: String, required: true },
-    email: { type: String, required: true },
+    email: { type: String, required: true, unique: true },
     phoneNumber: { type: String, default: '' },
     whatsapp: { type: String, default: '' },
     gender: { type: String, default: '' },
