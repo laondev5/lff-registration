@@ -116,7 +116,7 @@ export async function POST(request: Request) {
                     const registrationData = metadata?.registrationData;
                     if (registrationData) {
                       const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
-                      const scanUrl = `${baseUrl}/admin/scanner?id=${uniqueId}`;
+                      const scanUrl = `${baseUrl}/admin/users/${uniqueId}`;
                       const qrCodeDataUrl = await QRCode.toDataURL(scanUrl, {
                         width: 300, margin: 2,
                         color: { dark: '#000000', light: '#ffffff' }

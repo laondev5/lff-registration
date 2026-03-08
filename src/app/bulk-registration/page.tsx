@@ -176,8 +176,8 @@ export default function BulkRegistrationPage() {
     field: keyof Registrant,
     value: string | boolean,
   ) => {
-    setRegistrants(
-      registrants.map((r) => (r.id === id ? { ...r, [field]: value } : r)),
+    setRegistrants((prev) =>
+      prev.map((r) => (r.id === id ? { ...r, [field]: value } : r)),
     );
   };
 
@@ -212,24 +212,71 @@ export default function BulkRegistrationPage() {
 
   const isValid = useMemo(() => {
     if (!payerEmail || !payerEmail.includes("@")) return false;
-    return registrants.every(
-      (r) =>
+    return registrants.every((r) => {
+      const availableAccs = accommodations.filter((a) => {
+        if (a.isFullyBooked) return false;
+        const accTags = Array.isArray(a.accessTags) ? a.accessTags : [];
+        if (accTags.length === 0) return true;
+        const lowerTitle = r.title?.trim().toLowerCase();
+        return accTags.some(
+          (tag) => typeof tag === "string" && tag.trim().toLowerCase() === lowerTitle
+        );
+      });
+      return (
         r.title &&
-        r.fullName.length >= 2 &&
+        r.fullName.trim().length >= 2 &&
         r.email.includes("@") &&
-        r.phoneNumber.length >= 10 &&
-        r.whatsapp.length >= 10 &&
+        r.phoneNumber.replace(/[^0-9]/g, "").length >= 10 &&
+        r.whatsapp.replace(/[^0-9]/g, "").length >= 10 &&
         r.gender &&
         r.isLFFMember &&
-        r.churchDetails.length >= 2 &&
-        r.areaDistrict.length >= 2 &&
-        r.state.length >= 2 &&
-        r.country.length >= 2 &&
+        r.churchDetails.trim().length >= 2 &&
+        r.areaDistrict.trim().length >= 2 &&
+        r.state.trim().length >= 2 &&
+        r.country.trim().length >= 2 &&
         r.attendanceType &&
         r.busInterest &&
-        r.mealCollection,
-    );
-  }, [registrants, payerEmail]);
+        r.mealCollection &&
+        (r.hasPersonalAccommodation === "yes" ||
+          (r.hasPersonalAccommodation === "no" &&
+            (r.accommodationId || availableAccs.length === 0)))
+      );
+    });
+  }, [registrants, payerEmail, accommodations]);
+
+  const getMissingFields = (r: Registrant, index: number) => {
+    const missing = [];
+    if (!r.title) missing.push("Title");
+    if (r.fullName.trim().length < 2) missing.push("Full Name");
+    if (!r.email.includes("@")) missing.push("Email");
+    if (r.phoneNumber.replace(/[^0-9]/g, "").length < 10) missing.push("Phone");
+    if (r.whatsapp.replace(/[^0-9]/g, "").length < 10) missing.push("WhatsApp");
+    if (!r.gender) missing.push("Gender");
+    if (!r.isLFFMember) missing.push("LFF Membership");
+    if (r.churchDetails.trim().length < 2) missing.push("Church Details");
+    if (r.areaDistrict.trim().length < 2) missing.push("Area/District");
+    if (r.state.trim().length < 2) missing.push("State");
+    if (r.country.trim().length < 2) missing.push("Country");
+    if (!r.attendanceType) missing.push("Attendance Type");
+    if (!r.busInterest) missing.push("Bus Interest");
+    if (!r.mealCollection) missing.push("Meal Collection");
+    if (!r.hasPersonalAccommodation) missing.push("Accommodation Choice");
+    if (r.hasPersonalAccommodation === "no" && !r.accommodationId) {
+      const availableAccs = accommodations.filter((a) => {
+        if (a.isFullyBooked) return false;
+        const accTags = Array.isArray(a.accessTags) ? a.accessTags : [];
+        if (accTags.length === 0) return true;
+        const lowerTitle = r.title?.trim().toLowerCase();
+        return accTags.some(
+          (tag) => typeof tag === "string" && tag.trim().toLowerCase() === lowerTitle
+        );
+      });
+      if (availableAccs.length > 0) missing.push("Selected Accommodation");
+    }
+    
+    if (missing.length === 0) return null;
+    return `Person ${index + 1}: ${missing.join(", ")}`;
+  };
 
   const handlePay = async () => {
     if (!isValid) {
@@ -1009,23 +1056,20 @@ export default function BulkRegistrationPage() {
                                     disabled={acc.isFullyBooked}
                                     className="text-gray-600"
                                   >
-                                    {acc.title} — ₦
-                                    {parseInt(
-                                      acc.price.replace(/[^0-9]/g, ""),
-                                    ).toLocaleString()}
+                                    {acc.title} — {(() => {
+                                      const p = parseInt(acc.price.replace(/[^0-9]/g, ""));
+                                      return isNaN(p) || p === 0 ? "Free" : `₦${p.toLocaleString()}`;
+                                    })()}
                                     {acc.isFullyBooked ? ' (SOLD OUT)' : ''}
                                   </option>
                                 ))}
                             </select>
                             {registrant.accommodationType && (
                               <p className="text-xs text-primary">
-                                Selected: {registrant.accommodationType} — ₦
-                                {parseInt(
-                                  registrant.accommodationPrice.replace(
-                                    /[^0-9]/g,
-                                    "",
-                                  ),
-                                ).toLocaleString()}
+                                Selected: {registrant.accommodationType} — {(() => {
+                                  const p = parseInt(registrant.accommodationPrice.replace(/[^0-9]/g, ""));
+                                  return isNaN(p) || p === 0 ? "Free" : `₦${p.toLocaleString()}`;
+                                })()}
                               </p>
                             )}
                           </div>
@@ -1048,8 +1092,7 @@ export default function BulkRegistrationPage() {
           Add Another Person
         </button>
 
-        {/* Summary & Pay */}
-        <div className="bg-card border border-white/10 rounded-xl p-6 sticky bottom-4">
+        <div className="bg-[#111111] border border-white/20 rounded-xl p-6 sticky bottom-4 shadow-2xl z-50 backdrop-blur-md">
           {/* Breakdown */}
           {Object.keys(breakdown).length > 0 && (
             <div className="space-y-2 mb-4 text-sm">
@@ -1079,6 +1122,22 @@ export default function BulkRegistrationPage() {
             </div>
           )}
 
+          {!isValid && (
+            <div className="mb-4 space-y-2">
+              {!payerEmail || !payerEmail.includes("@") ? (
+                <p className="text-xs text-yellow-500/80 italic text-center">Missing valid Payer Email</p>
+              ) : (
+                <div className="space-y-1">
+                  <p className="text-[10px] text-yellow-500/80 uppercase font-bold tracking-wider text-center">Required fields missing:</p>
+                  {registrants.map((r, i) => {
+                    const msg = getMissingFields(r, i);
+                    return msg ? <p key={r.id} className="text-[10px] text-gray-400 text-center leading-tight">{msg}</p> : null;
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+
           {error && (
             <div className="mb-4 p-3 bg-red-500/10 border border-red-500/20 rounded-lg text-red-400 text-sm text-center">
               {error}
@@ -1088,7 +1147,7 @@ export default function BulkRegistrationPage() {
           <button
             onClick={handlePay}
             disabled={isSubmitting || !isValid || totalAmount === 0}
-            className="w-full bg-[#09A5DB] hover:bg-[#088ebc] text-white py-4 rounded-xl font-bold flex items-center justify-center gap-2 transition-all shadow-lg shadow-[#09A5DB]/20 disabled:opacity-50 disabled:cursor-not-allowed text-lg"
+            className="w-full bg-[#09A5DB] hover:bg-[#088ebc] text-white py-4 rounded-xl font-bold flex items-center justify-center gap-2 transition-all shadow-lg shadow-[#09A5DB]/20 disabled:opacity-40 disabled:grayscale disabled:cursor-not-allowed text-lg"
           >
             {isSubmitting ? (
               <Loader2 className="w-5 h-5 animate-spin" />

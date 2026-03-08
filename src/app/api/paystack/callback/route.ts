@@ -120,7 +120,7 @@ export async function GET(request: Request) {
           if (finalUniqueId && registrationData) {
             try {
               const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
-              const scanUrl = `${baseUrl}/admin/scanner?id=${finalUniqueId}`;
+              const scanUrl = `${baseUrl}/admin/users/${finalUniqueId}`;
               const qrCodeDataUrl = await QRCode.toDataURL(scanUrl, {
                 width: 300,
                 margin: 2,

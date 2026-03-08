@@ -29,6 +29,11 @@ export default function AdminScannerPage() {
         if (decodedText.includes("id=")) {
           const url = new URL(decodedText);
           uniqueId = url.searchParams.get("id") || decodedText;
+        } else if (decodedText.includes("/users/")) {
+          const parts = decodedText.split("/users/");
+          if (parts.length > 1) {
+             uniqueId = parts[1].split("?")[0].replace(/\/$/, "");
+          }
         }
 
         setIsVerifying(true);
@@ -134,6 +139,13 @@ export default function AdminScannerPage() {
                     </span>
                   </div>
                 </div>
+
+                <button
+                  onClick={() => window.location.href = `/admin/users/${verificationData.uniqueId}`}
+                  className="w-full px-4 py-3 bg-blue-600 text-white rounded-lg font-bold hover:bg-blue-700 transition-colors mt-4"
+                >
+                  View Full Profile
+                </button>
               </div>
             ) : (
               <div className="flex items-center gap-2 text-red-600 bg-red-50 p-3 rounded-lg border border-red-200">
@@ -146,7 +158,7 @@ export default function AdminScannerPage() {
 
             <button
               onClick={handleReset}
-              className="mt-4 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors"
+              className="mt-4 w-full px-4 py-3 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
             >
               Scan Another
             </button>

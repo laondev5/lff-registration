@@ -94,7 +94,7 @@ export async function POST(request: Request) {
           } catch (saveErr: any) {
             console.error('[Initialize] Failed to pre-save bulk registration:', saveErr);
             return NextResponse.json(
-              { success: false, error: 'Failed to save registration data. Please try again.' },
+              { success: false, error: saveErr.message || 'Failed to save registration data. Please try again.' },
               { status: 500 }
             );
           }
