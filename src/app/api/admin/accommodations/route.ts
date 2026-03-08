@@ -80,7 +80,8 @@ export async function POST(request: NextRequest) {
             slots,
             days,
             imageUrl,
-            fileId
+            fileId,
+            reservedFor: (formData.get('reservedFor') as string) || 'general',
         };
 
         const id = await addAccommodation(accommodationData);
@@ -112,6 +113,7 @@ export async function PUT(request: NextRequest) {
         if (formData.has('price')) updates.price = formData.get('price');
         if (formData.has('slots')) updates.slots = formData.get('slots');
         if (formData.has('days')) updates.days = formData.get('days');
+        if (formData.has('reservedFor')) updates.reservedFor = formData.get('reservedFor');
 
         if (file) {
             // Upload new file to Cloudinary

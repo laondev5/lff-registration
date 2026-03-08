@@ -6,8 +6,9 @@ export async function POST(request: NextRequest) {
         const body = await request.json();
         const { password } = body;
 
-        if (await loginAdmin(password)) {
-            return NextResponse.json({ success: true });
+        const role = await loginAdmin(password);
+        if (role) {
+            return NextResponse.json({ success: true, role });
         } else {
             return NextResponse.json({ error: "Invalid password" }, { status: 401 });
         }

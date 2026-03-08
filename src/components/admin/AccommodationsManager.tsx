@@ -14,7 +14,21 @@ interface Accommodation {
   imageUrl: string;
   fileId?: string;
   days?: string;
+  reservedFor?: string;
 }
+
+const RESERVATION_OPTIONS = [
+  { value: "general", label: "General (Everyone)" },
+  { value: "choir", label: "Choir" },
+  { value: "media", label: "Media" },
+  { value: "pastors", label: "Pastors" },
+  { value: "district_pastors", label: "District Pastors" },
+  { value: "elders", label: "Elders" },
+  { value: "ministers", label: "Ministers" },
+  { value: "deacons", label: "Deacons & Deaconess" },
+  { value: "vip", label: "VIP" },
+  { value: "exhorters", label: "Exhorters" },
+];
 
 export default function AccommodationsManager({
   initialData,
@@ -35,6 +49,7 @@ export default function AccommodationsManager({
   const [price, setPrice] = useState("");
   const [slots, setSlots] = useState("");
   const [days, setDays] = useState("1");
+  const [reservedFor, setReservedFor] = useState("general");
   const [file, setFile] = useState<File | null>(null);
   const [imageUrl, setImageUrl] = useState("");
 
@@ -49,6 +64,7 @@ export default function AccommodationsManager({
       setPrice(acc.price);
       setSlots(acc.slots);
       setDays(acc.days || "1");
+      setReservedFor(acc.reservedFor || "general");
     } else {
       setIsEditing(false);
       setCurrentId("");
@@ -57,6 +73,7 @@ export default function AccommodationsManager({
       setPrice("");
       setSlots("");
       setDays("1");
+      setReservedFor("general");
       setImageUrl("");
     }
     setFile(null);
@@ -77,6 +94,7 @@ export default function AccommodationsManager({
     formData.append("price", price);
     formData.append("slots", slots);
     formData.append("days", days);
+    formData.append("reservedFor", reservedFor);
 
     if (file) {
       formData.append("file", file);
@@ -195,6 +213,13 @@ export default function AccommodationsManager({
                 <div className="text-sm text-gray-500 mt-2">
                   Slots: {acc.slots}
                 </div>
+                {acc.reservedFor && acc.reservedFor !== "general" && (
+                  <span className="inline-block mt-2 text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full">
+                    {RESERVATION_OPTIONS.find(
+                      (o) => o.value === acc.reservedFor,
+                    )?.label || acc.reservedFor}
+                  </span>
+                )}
 
                 <div className="flex justify-end mt-4 space-x-2">
                   <button
@@ -232,6 +257,9 @@ export default function AccommodationsManager({
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Slots
                   </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Reserved For
+                  </th>
                   <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Actions
                   </th>
@@ -241,7 +269,7 @@ export default function AccommodationsManager({
                 {accommodations.length === 0 ? (
                   <tr>
                     <td
-                      colSpan={5}
+                      colSpan={6}
                       className="px-6 py-4 text-center text-sm text-gray-500"
                     >
                       No accommodations found. Click "Add New" to create one.
@@ -274,6 +302,19 @@ export default function AccommodationsManager({
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                         {acc.slots}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span
+                          className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                            acc.reservedFor === "general" || !acc.reservedFor
+                              ? "bg-gray-100 text-gray-600"
+                              : "bg-purple-100 text-purple-700"
+                          }`}
+                        >
+                          {RESERVATION_OPTIONS.find(
+                            (o) => o.value === (acc.reservedFor || "general"),
+                          )?.label || "General"}
+                        </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                         <button
@@ -414,6 +455,23 @@ export default function AccommodationsManager({
                     className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 text-black"
                   />
                 </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Reserved For
+                </label>
+                <select
+                  value={reservedFor}
+                  onChange={(e) => setReservedFor(e.target.value)}
+                  className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 text-black"
+                >
+                  {RESERVATION_OPTIONS.map((opt) => (
+                    <option key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </option>
+                  ))}
+                </select>
               </div>
 
               <div>

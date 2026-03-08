@@ -29,6 +29,7 @@ export interface IRegistration extends Document {
     department: string;
     subDepartment: string;
     registrationStatus: string; // 'Pending' | 'Paid'
+    paymentReference: string; // Paystack transaction reference
     sheetId?: string;
     createdAt: Date;
 }
@@ -62,6 +63,7 @@ const RegistrationSchema = new Schema({
     department: { type: String, default: '' },
     subDepartment: { type: String, default: '' },
     registrationStatus: { type: String, default: 'Pending' },
+    paymentReference: { type: String, default: '' },
     sheetId: { type: String, default: '' },
     createdAt: { type: Date, default: Date.now }
 });

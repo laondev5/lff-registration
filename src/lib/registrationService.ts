@@ -39,6 +39,7 @@ function formatRegistration(r: any) {
         department: r.department,
         subDepartment: r.subDepartment,
         registrationStatus: r.registrationStatus,
+        paymentReference: r.paymentReference || '',
         createdAt: r.createdAt?.toISOString?.() || r.createdAt,
     };
 }
@@ -88,7 +89,8 @@ export async function appendRegistration(data: any) {
         departmentStatus: '',
         department: '',
         subDepartment: '',
-        registrationStatus: 'Pending'
+        registrationStatus: 'Pending',
+        paymentReference: data.paymentReference || '',
     });
 
     try {
@@ -199,4 +201,20 @@ export async function findUserByEmailOrPhone(query: string) {
 
     if (!user) return null;
     return formatRegistration(user);
+}
+
+export async function findByPaymentReference(reference: string) {
+    await connectDB();
+    const user = await Registration.findOne({ paymentReference: reference }).lean();
+    if (!user) return null;
+    return formatRegistration(user);
+}
+
+export async function updatePaymentReference(uniqueId: string, reference: string) {
+    await connectDB();
+    const reg = await Registration.findOne({ uniqueId });
+    if (!reg) throw new Error('User not found');
+    reg.paymentReference = reference;
+    await reg.save();
+    return true;
 }

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { initializeTransaction } from '@/lib/paystack';
+import { appendRegistration } from '@/lib/registrationService';
 
 export async function POST(request: Request) {
   try {
@@ -60,6 +61,45 @@ export async function POST(request: Request) {
              );
           }
         }
+
+        // --- SAVE REGISTRATION BEFORE PAYMENT ---
+        // For single registration, save to DB now with Pending status
+        // so data is never lost even if callback/redirect fails
+        if (!metadata?.isBulk && regData) {
+          try {
+            const uniqueId = await appendRegistration(regData);
+            // Add uniqueId to metadata so callback/webhook can find it
+            metadata.uniqueId = uniqueId;
+            metadata.registrationData = { ...regData, uniqueId };
+            console.log(`[Initialize] Pre-saved registration: ${uniqueId}`);
+          } catch (saveErr: any) {
+            console.error('[Initialize] Failed to pre-save registration:', saveErr);
+            return NextResponse.json(
+              { success: false, error: 'Failed to save registration data. Please try again.' },
+              { status: 500 }
+            );
+          }
+        }
+
+        // For bulk registration, save all registrants
+        if (metadata?.isBulk && metadata?.registrationDataList) {
+          try {
+            const uniqueIds: string[] = [];
+            for (const regItem of metadata.registrationDataList) {
+              const uid = await appendRegistration(regItem);
+              uniqueIds.push(uid);
+            }
+            metadata.uniqueIds = uniqueIds;
+            console.log(`[Initialize] Pre-saved bulk registrations: ${uniqueIds.join(', ')}`);
+          } catch (saveErr: any) {
+            console.error('[Initialize] Failed to pre-save bulk registration:', saveErr);
+            return NextResponse.json(
+              { success: false, error: 'Failed to save registration data. Please try again.' },
+              { status: 500 }
+            );
+          }
+        }
+
         break;
       default:
         return NextResponse.json(
@@ -79,6 +119,24 @@ export async function POST(request: Request) {
         transaction_type: type,
       },
     });
+
+    // Store the payment reference on the pre-saved registration(s)
+    if (type === 'registration' && transaction.reference) {
+      const { updatePaymentReference } = await import('@/lib/registrationService');
+      try {
+        if (metadata?.uniqueId) {
+          await updatePaymentReference(metadata.uniqueId, transaction.reference);
+        }
+        if (metadata?.uniqueIds) {
+          for (const uid of metadata.uniqueIds) {
+            await updatePaymentReference(uid, transaction.reference);
+          }
+        }
+      } catch (refErr) {
+        console.warn('[Initialize] Failed to store payment reference:', refErr);
+        // Non-fatal: continue anyway
+      }
+    }
 
     return NextResponse.json({ success: true, data: transaction });
   } catch (error: any) {

@@ -19,6 +19,7 @@ function formatAccommodation(a: IAccommodation | any) {
         imageUrl: a.imageUrl,
         slots: a.slots,
         days: a.days,
+        reservedFor: a.reservedFor || 'general',
         createdAt: a.createdAt?.toISOString?.() || a.createdAt,
         fileId: a.fileId,
         sheetId: a.sheetId || '',
@@ -53,6 +54,44 @@ export async function getAccommodationsWithAvailability() {
     });
 }
 
+// Title-to-reservation group mapping
+const TITLE_TO_RESERVATION_GROUPS: Record<string, string[]> = {
+    'Child': ['general'],
+    'Teenager': ['general'],
+    'Bro': ['general'],
+    'Sis': ['general'],
+    'Exhorter': ['general', 'exhorters'],
+    'Deacon': ['general', 'deacons'],
+    'Deaconess': ['general', 'deacons'],
+    'Snr Deacon': ['general', 'deacons'],
+    'Snr Deaconess': ['general', 'deacons'],
+    'Pastor': ['general', 'pastors'],
+    'District Pastor': ['general', 'pastors', 'district_pastors'],
+    'Elders': ['general', 'elders'],
+    'Minister': ['general', 'ministers'],
+    'VIP': ['general', 'vip'],
+};
+
+export async function getAccommodationsForUser(title: string, department?: string) {
+    const allAccommodations = await getAccommodationsWithAvailability();
+    
+    // Get groups this user can access based on title
+    const allowedGroups = new Set(TITLE_TO_RESERVATION_GROUPS[title] || ['general']);
+    
+    // Add department-based groups
+    if (department) {
+        const deptLower = department.toLowerCase();
+        if (deptLower.includes('choir')) allowedGroups.add('choir');
+        if (deptLower.includes('media')) allowedGroups.add('media');
+    }
+    
+    // Filter accommodations: show if reservedFor is in user's allowed groups
+    return allAccommodations.filter(acc => {
+        const reservedFor = acc.reservedFor || 'general';
+        return allowedGroups.has(reservedFor);
+    });
+}
+
 export async function addAccommodation(data: any) {
     await connectDB();
     const uniqueId = `ACC-${Date.now()}`;
@@ -66,6 +105,7 @@ export async function addAccommodation(data: any) {
         slots: data.slots || '0',
         days: data.days || '1',
         fileId: data.fileId || '',
+        reservedFor: data.reservedFor || 'general',
     });
 
     try {
@@ -91,6 +131,7 @@ export async function updateAccommodationListing(id: string, data: any) {
     if (data.slots !== undefined) acc.slots = data.slots;
     if (data.days !== undefined) acc.days = data.days;
     if (data.fileId !== undefined) acc.fileId = data.fileId;
+    if (data.reservedFor !== undefined) acc.reservedFor = data.reservedFor;
 
     await acc.save();
 

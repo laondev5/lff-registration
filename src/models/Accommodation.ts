@@ -11,6 +11,7 @@ export interface IAccommodation extends Document {
     fileId: string;
     sheetId?: string; // Optional: ID returned by Google Sheets
     days?: string;
+    reservedFor?: string; // 'general' | 'choir' | 'media' | 'pastors' | 'district_pastors' | 'elders' | 'ministers' | 'deacons' | 'vip' | 'exhorters'
 }
 
 const AccommodationSchema = new Schema({
@@ -24,6 +25,7 @@ const AccommodationSchema = new Schema({
     fileId: { type: String, default: '' },
     sheetId: { type: String, default: '' },
     days: { type: String, default: '1' },
+    reservedFor: { type: String, default: 'general' },
 });
 
 export default mongoose.models.Accommodation || mongoose.model<IAccommodation>('Accommodation', AccommodationSchema);
