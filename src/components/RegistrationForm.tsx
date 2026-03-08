@@ -1293,12 +1293,10 @@ export function RegistrationForm() {
 
           <div className="flex flex-col gap-3">
             <button
-              onClick={() =>
-                router.push(`/join-department?id=${data.uniqueId}`)
-              }
+              onClick={() => router.push(`/store`)}
               className="w-full btn-primary py-4 text-lg font-bold flex items-center justify-center"
             >
-              Continue <ChevronRight className="w-5 h-5 ml-2" />
+              Get a T-Shirt <ChevronRight className="w-5 h-5 ml-2" />
             </button>
             <button
               onClick={() => router.push("/convention-partner")}

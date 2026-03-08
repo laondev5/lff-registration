@@ -67,7 +67,36 @@ export async function appendRegistration(data: any) {
             email: new RegExp('^' + data.email.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '$', 'i')
         });
         if (existing) {
-            throw new Error(`A registration with email "${data.email}" already exists. Registration ID: ${existing.uniqueId}`);
+            if (existing.registrationStatus !== 'Confirmed') {
+                // If the existing registration is pending, update it with new data and resume
+                existing.title = data.title || '';
+                existing.fullName = data.fullName || '';
+                existing.phoneNumber = data.phoneNumber || '';
+                existing.whatsapp = data.whatsapp || '';
+                existing.gender = data.gender || '';
+                existing.isLFFMember = data.isLFFMember || '';
+                existing.churchDetails = data.churchDetails || '';
+                existing.areaDistrict = data.areaDistrict || '';
+                existing.state = data.state || '';
+                existing.country = data.country || '';
+                existing.attendanceType = data.attendanceType || '';
+                existing.busInterest = data.busInterest || '';
+                existing.mealCollection = data.mealCollection || '';
+                existing.prayerRequest = data.prayerRequest || '';
+                existing.registrationType = data.registrationType || '';
+                existing.registrationAmount = data.registrationAmount || '';
+                existing.needsAccommodation = data.needsAccommodation ? 'Yes' : 'No';
+                existing.accommodationType = (data.accommodationType || '').trim();
+                existing.price = data.accommodationPrice || '';
+                existing.duration = data.duration || '';
+                existing.department = data.department || '';
+                existing.subDepartment = data.subDepartment || '';
+                
+                await existing.save();
+                return existing.uniqueId;
+            } else {
+                throw new Error(`A registration with email "${data.email}" already exists. Registration ID: ${existing.uniqueId}`);
+            }
         }
     }
 

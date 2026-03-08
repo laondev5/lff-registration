@@ -80,28 +80,45 @@ export async function initializeTransaction(params: {
   // Paystack expects amount in kobo
   const amountInKobo = Math.round(params.amount * 100);
 
-  const response = await fetch(`${PAYSTACK_BASE_URL}/transaction/initialize`, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${secretKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      email: params.email,
-      amount: amountInKobo,
-      reference: params.reference,
-      callback_url: params.callback_url || `${process.env.NEXT_PUBLIC_BASE_URL}/api/paystack/callback`,
-      ...(params.subaccount ? { subaccount: params.subaccount } : {}),
-      metadata: params.metadata,
-    }),
-  });
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
 
-  const result: PaystackInitializeResponse = await response.json();
-  if (!result.status) {
-    throw new Error(result.message || 'Failed to initialize Paystack transaction');
+  try {
+    const response = await fetch(`${PAYSTACK_BASE_URL}/transaction/initialize`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${secretKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        email: params.email,
+        amount: amountInKobo,
+        reference: params.reference,
+        callback_url: params.callback_url || `${process.env.NEXT_PUBLIC_BASE_URL}/api/paystack/callback`,
+        ...(params.subaccount ? { subaccount: params.subaccount } : {}),
+        metadata: params.metadata,
+      }),
+      signal: controller.signal
+    });
+
+    clearTimeout(timeoutId);
+
+    if (!response.ok && response.status >= 500) {
+       throw new Error(`Paystack server error: ${response.status}`);
+    }
+
+    const result: PaystackInitializeResponse = await response.json();
+    if (!result.status) {
+      throw new Error(result.message || 'Failed to initialize Paystack transaction');
+    }
+
+    return result.data;
+  } catch (error: any) {
+    if (error.name === 'AbortError') {
+      throw new Error('Paystack request timed out. Please check your internet connection and try again.');
+    }
+    throw error;
   }
-
-  return result.data;
 }
 
 export async function verifyTransaction(reference: string, type?: 'registration' | 'store') {
