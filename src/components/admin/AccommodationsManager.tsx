@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Plus, Edit, Trash2, X, LayoutGrid, List } from "lucide-react";
 import Image from "next/image";
@@ -63,22 +63,20 @@ export default function AccommodationsManager({
   const router = useRouter();
 
   // Fetch departments for tags
-  import("react").then((React) => {
-    React.useEffect(() => {
-      async function fetchDepts() {
-        try {
-          const res = await fetch("/api/admin/departments");
-          if (res.ok) {
-            const data = await res.json();
-            setDepartments(data);
-          }
-        } catch (error) {
-          console.error("Failed to fetch departments", error);
+  useEffect(() => {
+    async function fetchDepts() {
+      try {
+        const res = await fetch("/api/admin/departments");
+        if (res.ok) {
+          const data = await res.json();
+          setDepartments(data);
         }
+      } catch (error) {
+        console.error("Failed to fetch departments", error);
       }
-      fetchDepts();
-    }, []);
-  });
+    }
+    fetchDepts();
+  }, []);
 
   const openModal = (acc?: Accommodation) => {
     if (acc) {
