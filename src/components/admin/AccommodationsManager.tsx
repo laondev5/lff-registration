@@ -31,6 +31,7 @@ const TITLES = [
   "Snr Deacon",
   "Snr Deaconess",
   "Pastor",
+  "District Pastor",
   "Elders",
   "Minister",
   "VIP",

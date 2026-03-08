@@ -25,6 +25,7 @@ const TITLES = [
   "Snr Deacon",
   "Snr Deaconess",
   "Pastor",
+  "District Pastor",
   "Elders",
   "Minister",
   "VIP",
@@ -46,6 +47,11 @@ const TITLE_TO_REG: Record<
     amount: 4000,
   },
   Pastor: {
+    type: "elders_ministers_pastors",
+    label: "Elders, Ministers & Pastors",
+    amount: 5000,
+  },
+  "District Pastor": {
     type: "elders_ministers_pastors",
     label: "Elders, Ministers & Pastors",
     amount: 5000,
