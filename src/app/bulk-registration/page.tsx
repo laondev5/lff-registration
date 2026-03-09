@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useMemo, useEffect, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   Loader2,
   Plus,
@@ -12,6 +12,7 @@ import {
   ChevronDown,
   ChevronUp,
   Home,
+  CheckCircle,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -129,15 +130,62 @@ const emptyRegistrant = (): Registrant => ({
 });
 
 export default function BulkRegistrationPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-background text-foreground flex items-center justify-center p-4"><div className="flex animate-pulse items-center text-primary"><Loader2 className="w-6 h-6 animate-spin mr-2" /> Loading Bulk Registration...</div></div>}>
+      <BulkRegistrationFormContent />
+    </Suspense>
+  );
+}
+
+function BulkRegistrationFormContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const isRecovery = searchParams.get("recovery") === "true";
+  const recoveryRef = searchParams.get("reference") || "";
+
   const [registrants, setRegistrants] = useState<Registrant[]>([
     emptyRegistrant(),
   ]);
   const [payerEmail, setPayerEmail] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
+  const [success, setSuccess] = useState(false);
+  const [savedUniqueIds, setSavedUniqueIds] = useState<string[]>([]);
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
   const [accommodations, setAccommodations] = useState<Accommodation[]>([]);
+
+  // Load recovery data from sessionStorage
+  useEffect(() => {
+    if (isRecovery && recoveryRef) {
+      try {
+        const stored = sessionStorage.getItem("bulkRecoveryData");
+        if (stored) {
+          const metadata = JSON.parse(stored);
+          if (metadata && metadata.registrationDataList && Array.isArray(metadata.registrationDataList)) {
+            // Map over the list to ensure IDs exist so keys work, map basic types
+            const recoveredRegistrants = metadata.registrationDataList.map((r: any) => ({
+              ...emptyRegistrant(),
+              ...r,
+              id: r.id || crypto.randomUUID()
+            }));
+            setRegistrants(recoveredRegistrants);
+            
+            // Expand first, collapse rest for better UX
+            const newCollapsed: Record<string, boolean> = {};
+            recoveredRegistrants.forEach((r: any, idx: number) => {
+              newCollapsed[r.id] = idx !== 0;
+            });
+            setCollapsed(newCollapsed);
+            
+            // Re-populate payer email if it was saved generically (might not be in standard bulk metadata, but we can try)
+            if (metadata.payerEmail) setPayerEmail(metadata.payerEmail);
+          }
+        }
+      } catch (err) {
+        console.error("Failed to parse bulk recovery data:", err);
+      }
+    }
+  }, [isRecovery, recoveryRef]);
 
   // Fetch accommodations on mount
   useEffect(() => {
@@ -314,26 +362,45 @@ export default function BulkRegistrationPage() {
         };
       });
 
-      const payRes = await fetch("/api/paystack/initialize", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          email: payerEmail,
-          amount: totalAmount,
-          type: "registration",
-          metadata: {
-            fullName: `Bulk Registration (${registrants.length} people)`,
-            regType: "bulk",
-            isBulk: true,
+      if (isRecovery) {
+        // --- Recovery Flow ---
+        const recoverRes = await fetch("/api/paystack/recover-registration", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            reference: recoveryRef,
             registrationDataList,
-          },
-        }),
-      });
+          }),
+        });
 
-      const payData = await payRes.json();
-      if (!payData.success) throw new Error(payData.error);
+        const recoverData = await recoverRes.json();
+        if (!recoverData.success) throw new Error(recoverData.error || recoverData.message);
 
-      window.location.href = payData.data.authorization_url;
+        setSavedUniqueIds(recoverData.data?.uniqueIds || [recoverData.data?.uniqueId]);
+        setSuccess(true);
+      } else {
+        // --- Standard Payment Flow ---
+        const payRes = await fetch("/api/paystack/initialize", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            email: payerEmail,
+            amount: totalAmount,
+            type: "registration",
+            metadata: {
+              fullName: `Bulk Registration (${registrants.length} people)`,
+              regType: "bulk",
+              isBulk: true,
+              registrationDataList,
+            },
+          }),
+        });
+
+        const payData = await payRes.json();
+        if (!payData.success) throw new Error(payData.error);
+
+        window.location.href = payData.data.authorization_url;
+      }
     } catch (err: any) {
       console.error("Bulk payment error:", err);
       setError(err.message || "Failed to initialize payment.");
@@ -1144,20 +1211,56 @@ export default function BulkRegistrationPage() {
             </div>
           )}
 
-          <button
-            onClick={handlePay}
-            disabled={isSubmitting || !isValid || totalAmount === 0}
-            className="w-full bg-[#09A5DB] hover:bg-[#088ebc] text-white py-4 rounded-xl font-bold flex items-center justify-center gap-2 transition-all shadow-lg shadow-[#09A5DB]/20 disabled:opacity-40 disabled:grayscale disabled:cursor-not-allowed text-lg"
-          >
-            {isSubmitting ? (
-              <Loader2 className="w-5 h-5 animate-spin" />
-            ) : (
-              <>
-                Pay ₦{totalAmount.toLocaleString()} with Paystack{" "}
-                <CreditCard className="w-5 h-5" />
-              </>
-            )}
-          </button>
+          {success && savedUniqueIds.length > 0 ? (
+            <div className="mb-4 space-y-4 animate-in fade-in duration-500">
+              <div className="border border-green-500/30 rounded-xl p-6 bg-green-500/5 text-center space-y-3">
+                <div className="w-16 h-16 bg-green-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <CheckCircle className="w-8 h-8 text-green-500" />
+                </div>
+                <h4 className="text-xl font-bold text-white">
+                  Bulk Registration Recovered!
+                </h4>
+                <p className="text-gray-400 text-sm">
+                  The registrations have been successfully recovered and confirmed.
+                  <br />Confirmation emails have been sent to each individual&apos;s provided email address.
+                </p>
+                <div className="mt-4 pt-4 border-t border-white/10 text-left">
+                  <p className="text-xs text-gray-500 mb-2 font-semibold">Generated Registration IDs:</p>
+                  <div className="flex flex-wrap gap-2">
+                    {savedUniqueIds.map((uid) => (
+                      <span key={uid} className="bg-primary/10 border border-primary/30 rounded px-2 py-1 text-primary font-mono text-sm">
+                        {uid}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex justify-center">
+                <button
+                  onClick={() => router.push(`/store`)}
+                  className="w-full btn-primary py-4 text-lg font-bold flex items-center justify-center"
+                >
+                  <Home className="w-5 h-5 mr-2" /> Back to Home / Store
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button
+              onClick={handlePay}
+              disabled={isSubmitting || !isValid || totalAmount === 0}
+              className="w-full bg-[#09A5DB] hover:bg-[#088ebc] text-white py-4 rounded-xl font-bold flex items-center justify-center gap-2 transition-all shadow-lg shadow-[#09A5DB]/20 disabled:opacity-40 disabled:grayscale disabled:cursor-not-allowed text-lg"
+            >
+              {isSubmitting ? (
+                <Loader2 className="w-5 h-5 animate-spin" />
+              ) : (
+                <>
+                  {isRecovery ? "Complete Recovery" : `Pay ₦${totalAmount.toLocaleString()} with Paystack`}
+                  <CreditCard className="w-5 h-5 ml-2" />
+                </>
+              )}
+            </button>
+          )}
         </div>
       </div>
     </div>

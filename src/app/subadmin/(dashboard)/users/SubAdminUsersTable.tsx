@@ -1,10 +1,11 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import {
   CheckCircle,
   ChevronLeft,
   ChevronRight,
+  Search,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -28,19 +29,65 @@ interface User {
 
 export default function SubAdminUsersTable({ users }: { users: User[] }) {
   const [currentPage, setCurrentPage] = useState(1);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState("All");
   const usersPerPage = 20;
 
-  const totalPages = Math.ceil(users.length / usersPerPage);
+  const filteredUsers = useMemo(() => {
+    return users.filter((user) => {
+      const matchesSearch =
+        searchTerm === "" ||
+        user.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        user.uniqueId.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        user.phoneNumber.includes(searchTerm);
+
+      const matchesStatus =
+        statusFilter === "All" || user.registrationStatus === statusFilter;
+
+      return matchesSearch && matchesStatus;
+    });
+  }, [users, searchTerm, statusFilter]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredUsers.length / usersPerPage));
 
   const paginatedUsers = useMemo(() => {
     const start = (currentPage - 1) * usersPerPage;
-    return users.slice(start, start + usersPerPage);
-  }, [users, currentPage]);
+    return filteredUsers.slice(start, start + usersPerPage);
+  }, [filteredUsers, currentPage]);
+
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, statusFilter]);
 
   return (
-    <div className="bg-white shadow-md rounded-lg overflow-hidden border">
-      <div className="overflow-x-auto">
-        <table className="min-w-full divide-y divide-gray-200">
+    <div className="space-y-4">
+      <div className="flex flex-col sm:flex-row gap-4">
+        <div className="flex-1 relative">
+          <input
+            type="text"
+            placeholder="Search by name, email, ID, or phone..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+          <Search className="w-5 h-5 text-gray-400 absolute left-3 top-2.5" />
+        </div>
+        <select
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value)}
+          className="border rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+        >
+          <option value="All">All Statuses</option>
+          <option value="Confirmed">Confirmed</option>
+          <option value="Pending">Pending</option>
+        </select>
+      </div>
+
+      <div className="bg-white shadow-md rounded-lg overflow-hidden border">
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
             <tr>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -140,7 +187,7 @@ export default function SubAdminUsersTable({ users }: { users: User[] }) {
                 </td>
               </tr>
             ))}
-            {users.length === 0 && (
+            {paginatedUsers.length === 0 && (
               <tr>
                 <td
                   colSpan={6}
@@ -178,13 +225,13 @@ export default function SubAdminUsersTable({ users }: { users: User[] }) {
               <p className="text-sm text-gray-700">
                 Showing{" "}
                 <span className="font-medium">
-                  {Math.min((currentPage - 1) * usersPerPage + 1, users.length)}
+                  {filteredUsers.length === 0 ? 0 : Math.min((currentPage - 1) * usersPerPage + 1, filteredUsers.length)}
                 </span>{" "}
                 to{" "}
                 <span className="font-medium">
-                  {Math.min(currentPage * usersPerPage, users.length)}
+                  {Math.min(currentPage * usersPerPage, filteredUsers.length)}
                 </span>{" "}
-                of <span className="font-medium">{users.length}</span> results
+                of <span className="font-medium">{filteredUsers.length}</span> results
               </p>
             </div>
             <div>
@@ -241,6 +288,7 @@ export default function SubAdminUsersTable({ users }: { users: User[] }) {
           </div>
         </div>
       )}
+    </div>
     </div>
   );
 }

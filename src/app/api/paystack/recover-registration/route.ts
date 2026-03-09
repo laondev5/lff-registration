@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { 
   appendRegistration, 
   updatePaymentReference,
-  findByPaymentReference,
+  findAllByPaymentReference,
   getUserById,
   updateRegistrationStatus
 } from '@/lib/registrationService';
@@ -12,9 +12,9 @@ import * as QRCode from 'qrcode';
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { reference, registrationData } = body;
+    const { reference, registrationData, registrationDataList } = body;
 
-    if (!reference || !registrationData) {
+    if (!reference || (!registrationData && !registrationDataList)) {
       return NextResponse.json(
         { success: false, error: 'Missing reference or registration data' },
         { status: 400 }
@@ -22,54 +22,62 @@ export async function POST(request: Request) {
     }
 
     // 1. Double-check if it's already processed to prevent duplicates
-    const existingRegByRef = await findByPaymentReference(reference);
-    if (existingRegByRef && existingRegByRef.registrationStatus === 'Confirmed') {
+    const existingRegsByRef = await findAllByPaymentReference(reference);
+    if (existingRegsByRef && existingRegsByRef.length > 0 && existingRegsByRef.some((r: any) => r.registrationStatus === 'Confirmed')) {
       return NextResponse.json({
         success: true,
         alreadyProcessed: true,
         message: 'This payment has already been securely processed.',
-        data: { uniqueId: existingRegByRef.uniqueId }
+        data: { uniqueId: existingRegsByRef[0].uniqueId }
       });
     }
 
-    // Check if uniqueId was passed (meaning the user exists but wasn't confirmed properly)
-    if (registrationData.uniqueId) {
-      const existingUser = await getUserById(registrationData.uniqueId);
-      if (existingUser) {
-        // Just update status and reference
-        await updateRegistrationStatus(registrationData.uniqueId, 'Confirmed');
-        await updatePaymentReference(registrationData.uniqueId, reference);
-        
-        // Try to send email
-        await trySendEmail(existingUser.email, existingUser.fullName || registrationData.fullName, registrationData.uniqueId, reference);
+    // Prepare list of registrations to process
+    const regsToProcess = registrationDataList || [registrationData];
+    const generatedIds: string[] = [];
 
-        return NextResponse.json({
-          success: true,
-          recovered: true,
-          message: 'Registration confirmed successfully!',
-          data: { uniqueId: registrationData.uniqueId }
-        });
+    for (const dataItem of regsToProcess) {
+      if (!dataItem) continue;
+      
+      let finalUniqueId = null;
+
+      // Check if uniqueId was passed (meaning the user exists but wasn't confirmed properly)
+      if (dataItem.uniqueId) {
+        const existingUser = await getUserById(dataItem.uniqueId);
+        if (existingUser) {
+          // Just update status and reference
+          await updateRegistrationStatus(dataItem.uniqueId, 'Confirmed');
+          await updatePaymentReference(dataItem.uniqueId, reference);
+          finalUniqueId = dataItem.uniqueId;
+        }
       }
+
+      if (!finalUniqueId) {
+        // 2. Create new registration entry
+        finalUniqueId = await appendRegistration({
+          ...dataItem,
+          registrationStatus: 'Confirmed',
+          paymentReference: reference,
+        });
+        
+        // Ensure the reference is explicitly recorded 
+        await updatePaymentReference(finalUniqueId, reference);
+      }
+
+      generatedIds.push(finalUniqueId);
+
+      // 3. Send Email
+      await trySendEmail(dataItem.email, dataItem.fullName, finalUniqueId, reference);
     }
-
-    // 2. Create new registration entry
-    const newUniqueId = await appendRegistration({
-      ...registrationData,
-      registrationStatus: 'Confirmed',
-      paymentReference: reference,
-    });
-    
-    // Ensure the reference is explicitly recorded 
-    await updatePaymentReference(newUniqueId, reference);
-
-    // 3. Send Email
-    await trySendEmail(registrationData.email, registrationData.fullName, newUniqueId, reference);
 
     return NextResponse.json({
       success: true,
       recovered: true,
-      message: 'Registration has been saved and confirmed!',
-      data: { uniqueId: newUniqueId }
+      message: registrationDataList ? 'Bulk registrations recovered and confirmed!' : 'Registration has been saved and confirmed!',
+      data: { 
+        uniqueId: generatedIds[0],
+        uniqueIds: generatedIds 
+      }
     });
 
   } catch (error: any) {

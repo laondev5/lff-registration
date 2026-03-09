@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Edit, Trash2, X, LayoutGrid, List } from "lucide-react";
+import { Plus, Edit, Trash2, X, LayoutGrid, List, Search } from "lucide-react";
 import Image from "next/image";
 
 interface Accommodation {
@@ -48,6 +48,23 @@ export default function AccommodationsManager({
   const [isEditing, setIsEditing] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [viewMode, setViewMode] = useState<"table" | "grid">("table");
+
+  const [searchTerm, setSearchTerm] = useState("");
+  const [priceFilter, setPriceFilter] = useState("All");
+
+  const filteredAccommodations = accommodations.filter((acc) => {
+    const matchesSearch =
+      searchTerm === "" ||
+      acc.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      acc.description.toLowerCase().includes(searchTerm.toLowerCase());
+
+    const matchesPrice =
+      priceFilter === "All" ||
+      (priceFilter === "Free" && acc.price === "Free") ||
+      (priceFilter === "Paid" && acc.price !== "Free");
+
+    return matchesSearch && matchesPrice;
+  });
 
   // Form State
   const [currentId, setCurrentId] = useState("");
@@ -209,9 +226,31 @@ export default function AccommodationsManager({
         </div>
       </div>
 
+      <div className="flex flex-col sm:flex-row gap-4 mb-6">
+        <div className="flex-1 relative">
+          <input
+            type="text"
+            placeholder="Search accommodations by title or description..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+          <Search className="w-5 h-5 text-gray-400 absolute left-3 top-2.5" />
+        </div>
+        <select
+          value={priceFilter}
+          onChange={(e) => setPriceFilter(e.target.value)}
+          className="border rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+        >
+          <option value="All">All Prices</option>
+          <option value="Paid">Paid</option>
+          <option value="Free">Free</option>
+        </select>
+      </div>
+
       {viewMode === "grid" ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {accommodations.map((acc) => (
+          {filteredAccommodations.map((acc) => (
             <div
               key={acc.id}
               className="bg-white rounded-lg shadow-md overflow-hidden border"
@@ -303,7 +342,7 @@ export default function AccommodationsManager({
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {accommodations.length === 0 ? (
+                {filteredAccommodations.length === 0 ? (
                   <tr>
                     <td
                       colSpan={6}
@@ -313,7 +352,7 @@ export default function AccommodationsManager({
                     </td>
                   </tr>
                 ) : (
-                  accommodations.map((acc) => (
+                  filteredAccommodations.map((acc) => (
                     <tr key={acc.id} className="hover:bg-gray-50">
                       <td className="px-6 py-4 whitespace-nowrap">
                         <img

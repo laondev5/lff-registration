@@ -156,8 +156,16 @@ export async function updateAccommodation(uniqueId: string, accommodationData: a
 
     try {
         await sheetsUpdateAccommodation(uniqueId, accommodationData);
-    } catch (err) {
+    } catch (err: any) {
         console.warn('Google Sheets sync failed for updateAccommodation:', err);
+        if (err.message === 'User not found via Unique ID' || err?.message?.includes('User not found via Unique ID')) {
+            try {
+                await sheetsAppendRegistration(reg, uniqueId);
+                await sheetsUpdateAccommodation(uniqueId, accommodationData);
+            } catch (appendErr) {
+                console.warn('Also failed to append missing user to Google Sheets:', appendErr);
+            }
+        }
     }
 
     return true;
@@ -178,8 +186,16 @@ export async function updatePaymentProof(uniqueId: string, fileLink: string, typ
 
     try {
         await sheetsUpdatePaymentProof(uniqueId, fileLink, type);
-    } catch (err) {
+    } catch (err: any) {
         console.warn('Google Sheets sync failed for updatePaymentProof:', err);
+        if (err.message === 'User not found via Unique ID' || err?.message?.includes('User not found via Unique ID')) {
+            try {
+                await sheetsAppendRegistration(reg, uniqueId);
+                await sheetsUpdatePaymentProof(uniqueId, fileLink, type);
+            } catch (appendErr) {
+                console.warn('Also failed to append missing user to Google Sheets:', appendErr);
+            }
+        }
     }
 
     return true;
@@ -198,8 +214,16 @@ export async function updateUserDepartment(uniqueId: string, deptData: any) {
 
     try {
         await sheetsUpdateUserDepartment(uniqueId, deptData);
-    } catch (err) {
+    } catch (err: any) {
         console.warn('Google Sheets sync failed for updateUserDepartment:', err);
+        if (err.message === 'User not found via Unique ID' || err?.message?.includes('User not found via Unique ID')) {
+            try {
+                await sheetsAppendRegistration(reg, uniqueId);
+                await sheetsUpdateUserDepartment(uniqueId, deptData);
+            } catch (appendErr) {
+                console.warn('Also failed to append missing user to Google Sheets:', appendErr);
+            }
+        }
     }
 
     return true;
@@ -216,8 +240,16 @@ export async function updateRegistrationStatus(uniqueId: string, status: string)
 
     try {
         await sheetsUpdateRegistrationStatus(uniqueId, status);
-    } catch (err) {
+    } catch (err: any) {
         console.warn('Google Sheets sync failed for updateRegistrationStatus:', err);
+        if (err.message === 'User not found via Unique ID' || err?.message?.includes('User not found via Unique ID')) {
+            try {
+                await sheetsAppendRegistration(reg, uniqueId);
+                await sheetsUpdateRegistrationStatus(uniqueId, status);
+            } catch (appendErr) {
+                console.warn('Also failed to append missing user to Google Sheets:', appendErr);
+            }
+        }
     }
 
     return true;
@@ -247,6 +279,12 @@ export async function findByPaymentReference(reference: string) {
     const user = await Registration.findOne({ paymentReference: reference }).lean();
     if (!user) return null;
     return formatRegistration(user);
+}
+
+export async function findAllByPaymentReference(reference: string) {
+    await connectDB();
+    const users = await Registration.find({ paymentReference: reference }).lean();
+    return users.map((u: any) => formatRegistration(u));
 }
 
 export async function updatePaymentReference(uniqueId: string, reference: string) {

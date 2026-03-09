@@ -127,6 +127,8 @@ export function RegistrationForm() {
     useRegistrationStore();
   const router = useRouter();
   const searchParams = useSearchParams();
+  const isRecovery = searchParams.get("recovery") === "true";
+  const recoveryReference = searchParams.get("reference");
   const [submittingType, setSubmittingType] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isConventionPartner, setIsConventionPartner] = useState(false);
@@ -321,6 +323,30 @@ export function RegistrationForm() {
       department: data.department || "",
       subDepartment: data.subDepartment || "",
     };
+
+    if (isRecovery && recoveryReference) {
+      try {
+        const res = await fetch("/api/paystack/recover-registration", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            reference: recoveryReference,
+            registrationData,
+          }),
+        });
+        const result = await res.json();
+        if (!res.ok || !result.success) throw new Error(result.error || result.message || "Failed to recover registration");
+        
+        updateData({ uniqueId: result.data.uniqueId });
+        setStep(5);
+      } catch (err: any) {
+        console.error("Recovery error:", err);
+        toast.error(err.message || "Failed to recover registration");
+      } finally {
+        setIsSubmitting(false);
+      }
+      return;
+    }
 
     try {
       const res = await fetch("/api/paystack/initialize", {
@@ -1198,11 +1224,10 @@ export function RegistrationForm() {
           {/* Payment Instructions & Submit */}
           <div className="bg-primary/5 border border-primary/20 rounded-xl p-5 space-y-4">
             <h4 className="font-bold text-white flex items-center gap-2">
-              <CreditCard className="w-5 h-5 text-primary" /> Payment
-              Instructions
+              <CreditCard className="w-5 h-5 text-primary" /> {isRecovery ? "Complete Recovery" : "Payment Instructions"}
             </h4>
 
-            {paymentAccount && (
+            {paymentAccount && !isRecovery && (
               <div className="bg-white/5 p-4 rounded-lg space-y-2">
                 <p className="text-gray-400 text-sm">
                   Please transfer the fee to:
@@ -1219,7 +1244,7 @@ export function RegistrationForm() {
                   </p>
                 </div>
                 <p className="text-xs text-primary mt-2">
-                  Use your name "{data.fullName}" as reference/remark.
+                  Use your name &quot;{data.fullName}&quot; as reference/remark.
                 </p>
               </div>
             )}
@@ -1233,13 +1258,15 @@ export function RegistrationForm() {
                 <Loader2 className="w-5 h-5 animate-spin" />
               ) : (
                 <>
-                  {!isConventionPartner &&
+                  {isRecovery 
+                    ? "Complete Registration"
+                    : (!isConventionPartner &&
                   registrationInfo?.amount === 0 &&
                   (!data.needsAccommodation ||
                     String(data.accommodationPrice).toLowerCase() === "free" ||
                     data.accommodationPrice === "0")
                     ? "Register Now"
-                    : "Pay Now"}{" "}
+                    : "Pay Now")}{" "}
                   <CheckCircle className="w-5 h-5 ml-2" />
                 </>
               )}
@@ -1278,13 +1305,26 @@ export function RegistrationForm() {
               Registration Received!
             </h4>
             <p className="text-gray-400 text-sm">
-              Your registration has been received and is{" "}
-              <strong>Pending Confirmation</strong>.
-              <br />A confirmation email will be sent to{" "}
-              <span className="text-primary font-medium">
-                {data.email}
-              </span>{" "}
-              once your payment is verified by the admin.
+              {isRecovery ? (
+                <>
+                  Your registration has been successfully recovered and is{" "}
+                  <strong>Confirmed</strong>.
+                  <br />A confirmation email with your QR code has been sent to{" "}
+                  <span className="text-primary font-medium">
+                    {data.email}
+                  </span>.
+                </>
+              ) : (
+                <>
+                  Your registration has been received and is{" "}
+                  <strong>Pending Confirmation</strong>.
+                  <br />A confirmation email will be sent to{" "}
+                  <span className="text-primary font-medium">
+                    {data.email}
+                  </span>{" "}
+                  once your payment is verified by the admin.
+                </>
+              )}
             </p>
             {data.uniqueId && (
               <div className="bg-primary/10 border border-primary/30 rounded-lg p-3 inline-block">

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { ClipboardList, ExternalLink, Image as ImageIcon } from "lucide-react";
+import { ClipboardList, ExternalLink, Image as ImageIcon, Search } from "lucide-react";
 
 interface BookingRequest {
   id: string;
@@ -28,6 +28,25 @@ export default function BookingRequestsClient({
   const [bookings, setBookings] = useState(initialBookings);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [proofModal, setProofModal] = useState<string | null>(null);
+
+  const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState("All");
+
+  const filteredBookings = bookings.filter((booking) => {
+    const searchString = searchTerm.toLowerCase();
+    const matchesSearch =
+      searchTerm === "" ||
+      booking.name?.toLowerCase().includes(searchString) ||
+      booking.email?.toLowerCase().includes(searchString) ||
+      booking.phone?.includes(searchTerm) ||
+      booking.uniqueId?.toLowerCase().includes(searchString) ||
+      booking.accommodationType?.toLowerCase().includes(searchString);
+
+    const matchesStatus =
+      statusFilter === "All" || booking.status === statusFilter;
+
+    return matchesSearch && matchesStatus;
+  });
 
   const handleStatusUpdate = async (id: string, newStatus: string) => {
     setUpdatingId(id);
@@ -95,6 +114,29 @@ export default function BookingRequestsClient({
         </div>
       )}
 
+      <div className="flex flex-col sm:flex-row gap-4 mb-2">
+        <div className="flex-1 relative">
+          <input
+            type="text"
+            placeholder="Search bookings by name, email, phone, or ID..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+          <Search className="w-5 h-5 text-gray-400 absolute left-3 top-2.5" />
+        </div>
+        <select
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value)}
+          className="border rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+        >
+          <option value="All">All Statuses</option>
+          <option value="Confirmed">Confirmed</option>
+          <option value="Pending">Pending</option>
+          <option value="Rejected">Rejected</option>
+        </select>
+      </div>
+
       <div className="bg-white rounded-lg shadow overflow-x-auto">
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
@@ -126,14 +168,14 @@ export default function BookingRequestsClient({
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-200">
-            {bookings.length === 0 ? (
+            {filteredBookings.length === 0 ? (
               <tr>
                 <td colSpan={8} className="px-4 py-8 text-center text-gray-500">
-                  No booking requests yet.
+                  No booking requests found.
                 </td>
               </tr>
             ) : (
-              bookings.map((booking) => (
+              filteredBookings.map((booking) => (
                 <tr key={booking.id} className="hover:bg-gray-50">
                   <td className="px-4 py-3 text-sm font-mono text-gray-600">
                     {booking.id}
