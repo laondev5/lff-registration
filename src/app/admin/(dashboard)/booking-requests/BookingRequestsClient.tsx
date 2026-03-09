@@ -2,7 +2,9 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { ClipboardList, ExternalLink, Image as ImageIcon, Search } from "lucide-react";
+import { ClipboardList, ExternalLink, Image as ImageIcon, Search, Download } from "lucide-react";
+import * as XLSX from "xlsx";
+import { saveAs } from "file-saver";
 
 interface BookingRequest {
   id: string;
@@ -73,6 +75,38 @@ export default function BookingRequestsClient({
     }
   };
 
+  const getExportData = () => {
+    return filteredBookings.map(booking => ({
+      ID: booking.id,
+      Customer: booking.name,
+      Email: booking.email,
+      Phone: booking.phone,
+      "Unique ID": booking.uniqueId || "N/A",
+      "Accommodation Type": booking.accommodationType,
+      "Amount Paid": booking.amount,
+      Date: new Date(booking.createdAt).toLocaleDateString(),
+      Status: booking.status
+    }));
+  };
+
+  const exportToCSV = () => {
+    const data = getExportData();
+    const worksheet = XLSX.utils.json_to_sheet(data);
+    const csvOutput = XLSX.utils.sheet_to_csv(worksheet);
+    const blob = new Blob([csvOutput], { type: "text/csv;charset=utf-8;" });
+    saveAs(blob, `booking_requests_export_${new Date().toISOString().split('T')[0]}.csv`);
+  };
+
+  const exportToExcel = () => {
+    const data = getExportData();
+    const worksheet = XLSX.utils.json_to_sheet(data);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Booking Requests");
+    const excelBuffer = XLSX.write(workbook, { bookType: "xlsx", type: "array" });
+    const blob = new Blob([excelBuffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;charset=UTF-8" });
+    saveAs(blob, `booking_requests_export_${new Date().toISOString().split('T')[0]}.xlsx`);
+  };
+
   const statusColors: Record<string, string> = {
     Pending: "bg-yellow-100 text-yellow-800",
     Confirmed: "bg-green-100 text-green-800",
@@ -135,6 +169,32 @@ export default function BookingRequestsClient({
           <option value="Pending">Pending</option>
           <option value="Rejected">Rejected</option>
         </select>
+        
+        <div className="relative group z-20">
+          <button className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition focus:outline-none focus:ring-2 focus:ring-green-500 w-full sm:w-auto justify-center">
+            <Download className="w-4 h-4" /> Export
+          </button>
+          <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg border border-gray-100 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all">
+            <ul className="py-1">
+              <li>
+                <button
+                  onClick={exportToCSV}
+                  className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                >
+                  Export to CSV
+                </button>
+              </li>
+              <li>
+                <button
+                  onClick={exportToExcel}
+                  className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                >
+                  Export to Excel
+                </button>
+              </li>
+            </ul>
+          </div>
+        </div>
       </div>
 
       <div className="bg-white rounded-lg shadow overflow-x-auto">

@@ -6,8 +6,11 @@ import {
   ChevronLeft,
   ChevronRight,
   Search,
+  Download,
 } from "lucide-react";
 import Link from "next/link";
+import * as XLSX from "xlsx";
+import { saveAs } from "file-saver";
 
 interface User {
   uniqueId: string;
@@ -61,6 +64,43 @@ export default function SubAdminUsersTable({ users }: { users: User[] }) {
     setCurrentPage(1);
   }, [searchTerm, statusFilter]);
 
+  const getExportData = () => {
+    return filteredUsers.map(user => ({
+      ID: user.uniqueId,
+      Name: user.fullName,
+      Email: user.email,
+      Phone: user.phoneNumber,
+      WhatsApp: user.whatsapp,
+      Gender: user.gender,
+      State: user.state,
+      Country: user.country,
+      "Attendance Type": user.attendanceType,
+      "Church Details": user.churchDetails,
+      "Is LFF Member": user.isLFFMember,
+      "Needs Accommodation": user.needsAccommodation ? "Yes" : "No",
+      "Accommodation Type": user.accommodationType || "N/A",
+      Status: user.registrationStatus
+    }));
+  };
+
+  const exportToCSV = () => {
+    const data = getExportData();
+    const worksheet = XLSX.utils.json_to_sheet(data);
+    const csvOutput = XLSX.utils.sheet_to_csv(worksheet);
+    const blob = new Blob([csvOutput], { type: "text/csv;charset=utf-8;" });
+    saveAs(blob, `registrations_export_${new Date().toISOString().split('T')[0]}.csv`);
+  };
+
+  const exportToExcel = () => {
+    const data = getExportData();
+    const worksheet = XLSX.utils.json_to_sheet(data);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Registrations");
+    const excelBuffer = XLSX.write(workbook, { bookType: "xlsx", type: "array" });
+    const blob = new Blob([excelBuffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;charset=UTF-8" });
+    saveAs(blob, `registrations_export_${new Date().toISOString().split('T')[0]}.xlsx`);
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex flex-col sm:flex-row gap-4">
@@ -83,6 +123,32 @@ export default function SubAdminUsersTable({ users }: { users: User[] }) {
           <option value="Confirmed">Confirmed</option>
           <option value="Pending">Pending</option>
         </select>
+        
+        <div className="relative group z-20">
+          <button className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition focus:outline-none focus:ring-2 focus:ring-green-500 w-full sm:w-auto justify-center">
+            <Download className="w-4 h-4" /> Export
+          </button>
+          <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg border border-gray-100 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all">
+            <ul className="py-1">
+              <li>
+                <button
+                  onClick={exportToCSV}
+                  className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                >
+                  Export to CSV
+                </button>
+              </li>
+              <li>
+                <button
+                  onClick={exportToExcel}
+                  className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                >
+                  Export to Excel
+                </button>
+              </li>
+            </ul>
+          </div>
+        </div>
       </div>
 
       <div className="bg-white shadow-md rounded-lg overflow-hidden border">
