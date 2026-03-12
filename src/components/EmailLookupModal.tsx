@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Loader2, Mail, X } from "lucide-react";
+import { Loader2, Search, X } from "lucide-react";
 import { useRegistrationStore } from "@/store/useRegistrationStore";
 
 interface EmailLookupModalProps {
@@ -20,8 +20,8 @@ export function EmailLookupModal({ isOpen, onClose, onFound }: EmailLookupModalP
 
   const handleLookup = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email || !email.includes("@")) {
-      setError("Please enter a valid email address.");
+    if (!email) {
+      setError("Please enter your Registration ID or Email.");
       return;
     }
 
@@ -57,7 +57,7 @@ export function EmailLookupModal({ isOpen, onClose, onFound }: EmailLookupModalP
 
         onFound();
       } else {
-        setError("No registration found with this email. Please register first.");
+        setError("No registration found with this ID or Email. Please register first.");
       }
     } catch (err: any) {
       setError("Something went wrong. Please try again.");
@@ -81,13 +81,13 @@ export function EmailLookupModal({ isOpen, onClose, onFound }: EmailLookupModalP
         {/* Header */}
         <div className="text-center mb-6">
           <div className="w-16 h-16 bg-primary/20 rounded-full flex items-center justify-center mx-auto mb-4">
-            <Mail className="w-8 h-8 text-primary" />
+            <Search className="w-8 h-8 text-primary" />
           </div>
           <h2 className="text-2xl font-bold text-white mb-2">
             Already Registered?
           </h2>
           <p className="text-gray-400 text-sm">
-            Enter the email you used during registration to continue booking your accommodation.
+            Enter the Registration ID or Email you used during registration to continue booking your accommodation.
           </p>
         </div>
 
@@ -95,14 +95,14 @@ export function EmailLookupModal({ isOpen, onClose, onFound }: EmailLookupModalP
         <form onSubmit={handleLookup} className="space-y-4">
           <div className="space-y-1.5">
             <label className="text-sm font-medium text-gray-300">
-              Registration Email
+              Registration ID or Email
             </label>
             <input
-              type="email"
+              type="text"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className="form-input"
-              placeholder="your.email@example.com"
+              placeholder="LFF-... or your.email@example.com"
               autoFocus
             />
           </div>

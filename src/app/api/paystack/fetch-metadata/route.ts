@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { verifyTransaction } from '@/lib/paystack';
-import { findAllByPaymentReference, updateRegistrationStatus, findUserByEmailOrPhone, updatePaymentReference } from '@/lib/registrationService';
+import { findAllByPaymentReference, updateRegistrationStatus, updatePaymentReference } from '@/lib/registrationService';
 import { sendRegistrationEmail } from '@/lib/email';
 import * as QRCode from 'qrcode';
 import { connectDB } from '@/lib/mongodb';

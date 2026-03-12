@@ -16,7 +16,14 @@ function safeJsonParse(jsonString: any) {
 async function getSheetsClient() {
     const clientEmail = process.env.GOOGLE_CLIENT_EMAIL;
     // Handle private key newlines correctly
-    const privateKey = process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, '\n');
+    // Sometimes Next.js wraps the key in quotes or escapes the backslashes twice.
+    let privateKey = process.env.GOOGLE_PRIVATE_KEY || '';
+    if (privateKey) {
+        // Remove surrounding quotes if Next.js includes them
+        privateKey = privateKey.replace(/^"|"$/g, '');
+        // Replace escaped newlines with actual newlines
+        privateKey = privateKey.replace(/\\n/g, '\n');
+    }
 
     if (!clientEmail || !privateKey) {
         throw new Error("Missing Google Sheets credentials in environment variables.");
@@ -904,12 +911,12 @@ export async function getPaymentAccountByType(type: 'store' | 'accommodation' | 
 
 // --- User Lookup ---
 
-export async function findUserByEmailOrPhone(emailOrPhone: string) {
+export async function findUserByIdOrEmail(idOrEmail: string) {
     const users = await getUsers();
-    const normalized = emailOrPhone.trim().toLowerCase();
+    const normalized = idOrEmail.trim().toLowerCase();
     return users.find(u =>
-        (u.email && u.email.toLowerCase() === normalized) ||
-        (u.phoneNumber && u.phoneNumber === emailOrPhone.trim())
+        (u.uniqueId && u.uniqueId === idOrEmail.trim()) ||
+        (u.email && u.email.toLowerCase() === normalized)
     ) || null;
 }
 
