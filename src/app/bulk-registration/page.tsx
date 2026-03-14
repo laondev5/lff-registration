@@ -18,6 +18,8 @@ import Link from "next/link";
 
 // ─── Title → Registration Fee Mapping ──────────────────
 const TITLES = [
+  "Child",
+  "Teenager",
   "Bro",
   "Sis",
   "Exhorter",
@@ -36,6 +38,8 @@ const TITLE_TO_REG: Record<
   string,
   { type: string; label: string; amount: number }
 > = {
+  Child: { type: "child", label: "Child", amount: 500 },
+  Teenager: { type: "teenager", label: "Teenager", amount: 1000 },
   Bro: { type: "regular", label: "Regular", amount: 2000 },
   Sis: { type: "regular", label: "Regular", amount: 2000 },
   Exhorter: { type: "exhorter", label: "Exhorter", amount: 3000 },
@@ -435,7 +439,15 @@ function BulkRegistrationFormContent() {
           <h3 className="text-sm font-semibold text-gray-300 mb-3">
             Registration Fees
           </h3>
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 text-sm">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-7 gap-3 text-sm">
+            <div className="bg-white/5 rounded-lg p-3 text-center">
+              <p className="text-gray-400">Child</p>
+              <p className="text-primary font-bold text-lg">₦500</p>
+            </div>
+            <div className="bg-white/5 rounded-lg p-3 text-center">
+              <p className="text-gray-400">Teenager</p>
+              <p className="text-primary font-bold text-lg">₦1,000</p>
+            </div>
             <div className="bg-white/5 rounded-lg p-3 text-center">
               <p className="text-gray-400">Regular</p>
               <p className="text-primary font-bold text-lg">₦2,000</p>
