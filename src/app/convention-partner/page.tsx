@@ -1,11 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { Loader2, Heart, Mail, CreditCard, ChevronLeft, CheckCircle } from "lucide-react";
+import { Loader2, Heart, IdCard, CreditCard, ChevronLeft, CheckCircle } from "lucide-react";
 import Link from "next/link";
 
 export default function ConventionPartnerPage() {
-  const [email, setEmail] = useState("");
+  const [registrationId, setRegistrationId] = useState("");
   const [amount, setAmount] = useState("10000");
   const [loading, setLoading] = useState(false);
   const [lookupLoading, setLookupLoading] = useState(false);
@@ -15,8 +15,8 @@ export default function ConventionPartnerPage() {
 
   const handleLookup = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email || !email.includes("@")) {
-      setError("Please enter a valid email address.");
+    if (!registrationId.trim()) {
+      setError("Please enter your Registration ID.");
       return;
     }
 
@@ -24,16 +24,20 @@ export default function ConventionPartnerPage() {
     setError("");
 
     try {
-      const res = await fetch(`/api/lookup-user?query=${encodeURIComponent(email)}`);
+      const res = await fetch("/api/lookup-user", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ idOrEmail: registrationId.trim() }),
+      });
       const data = await res.json();
 
-      if (data.success && data.user) {
+      if (data.found && data.user) {
         setUserData(data.user);
         setStep("donate");
       } else {
-        setError("No registration found with this email. You must register first before becoming a Convention Partner.");
+        setError("No registration found with this ID. You must register first before becoming a Convention Partner.");
       }
-    } catch (err: any) {
+    } catch {
       setError("Something went wrong. Please try again.");
     } finally {
       setLookupLoading(false);
@@ -129,24 +133,24 @@ export default function ConventionPartnerPage() {
         {step === "lookup" && (
           <div className="bg-card border border-white/10 rounded-xl p-6">
             <h2 className="text-lg font-bold text-white mb-1 flex items-center gap-2">
-              <Mail className="w-5 h-5 text-primary" />
+              <IdCard className="w-5 h-5 text-primary" />
               Find Your Registration
             </h2>
             <p className="text-gray-400 text-sm mb-4">
-              Enter the email you registered with to continue.
+              Enter your Registration ID to continue.
             </p>
 
             <form onSubmit={handleLookup} className="space-y-4">
               <div className="space-y-1.5">
                 <label className="text-sm font-medium text-gray-300">
-                  Registration Email
+                  Registration ID
                 </label>
                 <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  type="text"
+                  value={registrationId}
+                  onChange={(e) => setRegistrationId(e.target.value)}
                   className="form-input"
-                  placeholder="your.email@example.com"
+                  placeholder="e.g. LFF-XXXXX"
                   autoFocus
                 />
               </div>
@@ -166,7 +170,7 @@ export default function ConventionPartnerPage() {
 
               <button
                 type="submit"
-                disabled={lookupLoading || !email}
+                disabled={lookupLoading || !registrationId.trim()}
                 className="w-full bg-primary text-primary-foreground py-3 rounded-xl font-bold hover:opacity-90 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
                 {lookupLoading ? (
@@ -256,7 +260,7 @@ export default function ConventionPartnerPage() {
               }}
               className="w-full text-gray-400 hover:text-white text-sm py-2 transition-colors"
             >
-              ← Use a different email
+              ← Use a different ID
             </button>
           </div>
         )}

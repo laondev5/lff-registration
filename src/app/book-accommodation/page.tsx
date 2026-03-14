@@ -228,7 +228,7 @@ export default function BookAccommodationPage() {
                 <Search className="w-5 h-5" /> Find Your Account
               </h2>
               <p className="text-gray-400 text-sm">
-                Enter your Registration ID or Email. If you&apos;re registered,
+                Enter your Registration ID. If you&apos;re registered,
                 we&apos;ll pre-fill your details.
               </p>
               <div>
@@ -236,7 +236,7 @@ export default function BookAccommodationPage() {
                   type="text"
                   value={lookupValue}
                   onChange={(e) => setLookupValue(e.target.value)}
-                  placeholder="Registration ID or Email"
+                  placeholder="Registration ID (e.g. LFF-XXXXX)"
                   className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-primary transition-colors"
                   onKeyDown={(e) => e.key === "Enter" && handleLookup()}
                 />
