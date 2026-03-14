@@ -100,7 +100,7 @@ export default function BookAccommodationPage() {
       const res = await fetch("/api/lookup-user", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ emailOrPhone: lookupValue.trim() }),
+        body: JSON.stringify({ idOrEmail: lookupValue.trim() }),
       });
       const data = await res.json();
       if (data.found) {
@@ -228,7 +228,7 @@ export default function BookAccommodationPage() {
                 <Search className="w-5 h-5" /> Find Your Account
               </h2>
               <p className="text-gray-400 text-sm">
-                Enter your email or phone number. If you&apos;re registered,
+                Enter your Registration ID or Email. If you&apos;re registered,
                 we&apos;ll pre-fill your details.
               </p>
               <div>
@@ -236,7 +236,7 @@ export default function BookAccommodationPage() {
                   type="text"
                   value={lookupValue}
                   onChange={(e) => setLookupValue(e.target.value)}
-                  placeholder="Email or phone number"
+                  placeholder="Registration ID or Email"
                   className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-primary transition-colors"
                   onKeyDown={(e) => e.key === "Enter" && handleLookup()}
                 />

@@ -1,19 +1,19 @@
 import { NextResponse } from 'next/server';
-import { findUserByEmailOrPhone } from '@/lib/registrationService';
+import { findUserByIdOrEmail } from '@/lib/registrationService';
 
 export async function POST(request: Request) {
     try {
         const body = await request.json();
-        const { emailOrPhone } = body;
+        const { idOrEmail } = body;
 
-        if (!emailOrPhone) {
+        if (!idOrEmail) {
             return NextResponse.json(
-                { success: false, error: "emailOrPhone is required" },
+                { success: false, error: "Registration ID or Email is required" },
                 { status: 400 }
             );
         }
 
-        const user = await findUserByEmailOrPhone(emailOrPhone);
+        const user = await findUserByIdOrEmail(idOrEmail);
 
         if (user) {
             return NextResponse.json({
@@ -46,7 +46,7 @@ export async function GET(request: Request) {
             );
         }
 
-        const user = await findUserByEmailOrPhone(query);
+        const user = await findUserByIdOrEmail(query);
 
         if (user) {
             return NextResponse.json({

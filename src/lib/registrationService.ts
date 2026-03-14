@@ -61,45 +61,6 @@ export async function appendRegistration(data: any) {
     await connectDB();
     const uniqueId = `LFF-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
 
-    // Check for duplicate email
-    if (data.email) {
-        const existing = await Registration.findOne({
-            email: new RegExp('^' + data.email.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '$', 'i')
-        });
-        if (existing) {
-            if (existing.registrationStatus !== 'Confirmed') {
-                // If the existing registration is pending, update it with new data and resume
-                existing.title = data.title || '';
-                existing.fullName = data.fullName || '';
-                existing.phoneNumber = data.phoneNumber || '';
-                existing.whatsapp = data.whatsapp || '';
-                existing.gender = data.gender || '';
-                existing.isLFFMember = data.isLFFMember || '';
-                existing.churchDetails = data.churchDetails || '';
-                existing.areaDistrict = data.areaDistrict || '';
-                existing.state = data.state || '';
-                existing.country = data.country || '';
-                existing.attendanceType = data.attendanceType || '';
-                existing.busInterest = data.busInterest || '';
-                existing.mealCollection = data.mealCollection || '';
-                existing.prayerRequest = data.prayerRequest || '';
-                existing.registrationType = data.registrationType || '';
-                existing.registrationAmount = data.registrationAmount || '';
-                existing.needsAccommodation = data.needsAccommodation ? 'Yes' : 'No';
-                existing.accommodationType = (data.accommodationType || '').trim();
-                existing.price = data.accommodationPrice || '';
-                existing.duration = data.duration || '';
-                existing.department = data.department || '';
-                existing.subDepartment = data.subDepartment || '';
-                
-                await existing.save();
-                return existing.uniqueId;
-            } else {
-                throw new Error(`A registration with email "${data.email}" already exists. Registration ID: ${existing.uniqueId}`);
-            }
-        }
-    }
-
     const reg = await Registration.create({
         uniqueId,
         title: data.title || '',
@@ -255,18 +216,13 @@ export async function updateRegistrationStatus(uniqueId: string, status: string)
     return true;
 }
 
-export async function findUserByEmailOrPhone(query: string) {
+export async function findUserByIdOrEmail(query: string) {
     await connectDB();
     
-    // Exact same logic as user lookup, but against mongodb
-    // Need to handle missing users, wait, I didn't add findUserByEmailOrPhone inside registrationService but it's used in lookup-user route!
-    // Let me add it.
-    
-    // We want a case-insensitive match for email
     const user = await Registration.findOne({
         $or: [
-            { email: new RegExp('^' + query + '$', 'i') },
-            { phoneNumber: query }
+            { uniqueId: query },
+            { email: new RegExp('^' + query + '$', 'i') }
         ]
     }).lean();
 
