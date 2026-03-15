@@ -11,6 +11,7 @@ import {
   Search,
   Download,
   ShieldCheck,
+  Mail,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { toast } from "react-hot-toast";
@@ -40,6 +41,7 @@ export default function UsersTable({ users }: { users: User[] }) {
   const [currentPage, setCurrentPage] = useState(1);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
+  const [resendingId, setResendingId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
   const usersPerPage = 20;
@@ -117,6 +119,28 @@ export default function UsersTable({ users }: { users: User[] }) {
       toast.error("An error occurred while confirming.");
     } finally {
       setConfirmingId(null);
+    }
+  };
+
+  const handleResendEmail = async (uniqueId: string, fullName: string) => {
+    const confirmed = window.confirm(
+      `Resend confirmation email to ${fullName}?`
+    );
+    if (!confirmed) return;
+
+    setResendingId(uniqueId);
+    try {
+      const res = await fetch(`/api/admin/users/${uniqueId}`, { method: "POST" });
+      const data = await res.json();
+      if (data.success) {
+        toast.success(`Confirmation email resent to ${fullName}.`);
+      } else {
+        toast.error(data.error || "Failed to resend email.");
+      }
+    } catch {
+      toast.error("An error occurred while resending.");
+    } finally {
+      setResendingId(null);
     }
   };
 
@@ -326,6 +350,20 @@ export default function UsersTable({ users }: { users: User[] }) {
                           <ShieldCheck className="w-3 h-3 mr-1" />
                         )}
                         Confirm
+                      </button>
+                    )}
+                    {user.registrationStatus === "Confirmed" && (
+                      <button
+                        onClick={() => handleResendEmail(user.uniqueId, user.fullName)}
+                        disabled={resendingId === user.uniqueId}
+                        className="inline-flex items-center px-2.5 py-1.5 rounded-md text-xs font-medium bg-blue-50 text-blue-700 hover:bg-blue-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                      >
+                        {resendingId === user.uniqueId ? (
+                          <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                        ) : (
+                          <Mail className="w-3 h-3 mr-1" />
+                        )}
+                        Resend Email
                       </button>
                     )}
                     <button
