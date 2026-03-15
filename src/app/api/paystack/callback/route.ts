@@ -1,10 +1,11 @@
 import { NextResponse } from 'next/server';
 import { verifyTransaction } from '@/lib/paystack';
-import { 
-  appendRegistration, 
-  updateRegistrationStatus, 
+import {
+  appendRegistration,
+  updateRegistrationStatus,
   findByPaymentReference,
-  updatePaymentReference 
+  updatePaymentReference,
+  getUserById
 } from '@/lib/registrationService';
 import { sendRegistrationEmail } from '@/lib/email';
 import * as QRCode from 'qrcode';
@@ -58,6 +59,22 @@ export async function GET(request: Request) {
                 if (!existingReg) {
                   await updatePaymentReference(uid, reference);
                 }
+
+                // Send confirmation email to each registrant
+                try {
+                  const user = await getUserById(uid);
+                  if (user && user.email && user.fullName) {
+                    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
+                    const scanUrl = `${baseUrl}/admin/users/${uid}`;
+                    const qrCodeDataUrl = await QRCode.toDataURL(scanUrl, {
+                      width: 300, margin: 2,
+                      color: { dark: '#000000', light: '#ffffff' }
+                    });
+                    await sendRegistrationEmail(user.email, user.fullName, uid, reference, qrCodeDataUrl);
+                  }
+                } catch (emailErr) {
+                  console.error(`[Callback] Email failed for bulk reg ${uid}:`, emailErr);
+                }
               } catch (err) {
                 console.error(`[Callback] Failed to confirm bulk registration ${uid}:`, err);
               }
@@ -73,6 +90,21 @@ export async function GET(request: Request) {
                   const uid = await appendRegistration({ ...regData, paymentReference: reference });
                   await updateRegistrationStatus(uid, 'Confirmed');
                   newIds.push(uid);
+
+                  // Send confirmation email to each registrant
+                  try {
+                    if (regData.email) {
+                      const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
+                      const scanUrl = `${baseUrl}/admin/users/${uid}`;
+                      const qrCodeDataUrl = await QRCode.toDataURL(scanUrl, {
+                        width: 300, margin: 2,
+                        color: { dark: '#000000', light: '#ffffff' }
+                      });
+                      await sendRegistrationEmail(regData.email, regData.fullName || '', uid, reference, qrCodeDataUrl);
+                    }
+                  } catch (emailErr) {
+                    console.error(`[Callback] Email failed for bulk reg ${uid}:`, emailErr);
+                  }
                 } catch (err) {
                   console.error('[Callback] Failed to create bulk registration:', err);
                 }

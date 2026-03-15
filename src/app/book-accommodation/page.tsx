@@ -398,7 +398,7 @@ export default function BookAccommodationPage() {
                           )}
                         </div>
                         <p className={`text-lg font-black ${isSoldOut ? 'text-gray-500' : 'text-primary'}`}>
-                          ₦{parseInt(acc.price).toLocaleString()}
+                          {acc.price === "Free" || acc.price === "0" || !acc.price ? "Free" : `₦${parseInt(acc.price.toString().replace(/[^0-9]/g, "") || "0").toLocaleString()}`}
                         </p>
                       </div>
                     </button>
@@ -440,7 +440,7 @@ export default function BookAccommodationPage() {
                     {selectedAccommodation.name}
                   </p>
                   <p className="text-2xl font-black text-primary mt-1">
-                    ₦{parseInt(selectedAccommodation.price).toLocaleString()}
+                    {selectedAccommodation.price === "Free" || selectedAccommodation.price === "0" || !selectedAccommodation.price ? "Free" : `₦${parseInt(selectedAccommodation.price.toString().replace(/[^0-9]/g, "") || "0").toLocaleString()}`}
                   </p>
                 </div>
               )}

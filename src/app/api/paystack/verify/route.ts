@@ -182,6 +182,21 @@ export async function GET(request: Request) {
               paymentReference: reference,
             });
             recoveredIds.push(uid);
+
+            // Send confirmation email to each registrant
+            try {
+              if (regItem.email) {
+                const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
+                const scanUrl = `${baseUrl}/admin/users/${uid}`;
+                const qrCodeDataUrl = await QRCode.toDataURL(scanUrl, {
+                  width: 300, margin: 2,
+                  color: { dark: '#000000', light: '#ffffff' }
+                });
+                await sendRegistrationEmail(regItem.email, regItem.fullName || '', uid, reference, qrCodeDataUrl);
+              }
+            } catch (emailErr) {
+              console.error(`[Verify] Email failed for bulk reg ${uid}:`, emailErr);
+            }
           }
 
           return NextResponse.json({

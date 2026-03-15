@@ -95,6 +95,22 @@ export async function POST(request: Request) {
               try {
                 await updateRegistrationStatus(uid, 'Confirmed');
                 await updatePaymentReference(uid, reference);
+
+                // Send confirmation email to each registrant
+                try {
+                  const user = await getUserById(uid);
+                  if (user && user.email && user.fullName) {
+                    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
+                    const scanUrl = `${baseUrl}/admin/users/${uid}`;
+                    const qrCodeDataUrl = await QRCode.toDataURL(scanUrl, {
+                      width: 300, margin: 2,
+                      color: { dark: '#000000', light: '#ffffff' }
+                    });
+                    await sendRegistrationEmail(user.email, user.fullName, uid, reference, qrCodeDataUrl);
+                  }
+                } catch (emailErr) {
+                  console.error(`[Webhook] Email failed for bulk reg ${uid}:`, emailErr);
+                }
               } catch (err) {
                 console.error(`[Webhook] Failed to confirm bulk reg ${uid}:`, err);
               }

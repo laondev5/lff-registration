@@ -10,6 +10,7 @@ import {
   Trash2,
   Search,
   Download,
+  ShieldCheck,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { toast } from "react-hot-toast";
@@ -38,6 +39,7 @@ export default function UsersTable({ users }: { users: User[] }) {
   const router = useRouter();
   const [currentPage, setCurrentPage] = useState(1);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [confirmingId, setConfirmingId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
   const usersPerPage = 20;
@@ -92,6 +94,29 @@ export default function UsersTable({ users }: { users: User[] }) {
       toast.error("An error occurred while deleting.");
     } finally {
       setDeletingId(null);
+    }
+  };
+
+  const handleConfirm = async (uniqueId: string, fullName: string) => {
+    const confirmed = window.confirm(
+      `Manually confirm registration for "${fullName}"? A confirmation email with their ID will be sent.`
+    );
+    if (!confirmed) return;
+
+    setConfirmingId(uniqueId);
+    try {
+      const res = await fetch(`/api/admin/users/${uniqueId}`, { method: "PATCH" });
+      const data = await res.json();
+      if (data.success) {
+        toast.success(`${fullName} confirmed. Confirmation email sent.`);
+        router.refresh();
+      } else {
+        toast.error(data.error || "Failed to confirm registration.");
+      }
+    } catch {
+      toast.error("An error occurred while confirming.");
+    } finally {
+      setConfirmingId(null);
     }
   };
 
@@ -288,18 +313,34 @@ export default function UsersTable({ users }: { users: User[] }) {
                   )}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
-                  <button
-                    onClick={() => handleDelete(user.uniqueId, user.fullName)}
-                    disabled={deletingId === user.uniqueId}
-                    className="inline-flex items-center px-2.5 py-1.5 rounded-md text-xs font-medium bg-red-50 text-red-700 hover:bg-red-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                  >
-                    {deletingId === user.uniqueId ? (
-                      <Loader2 className="w-3 h-3 mr-1 animate-spin" />
-                    ) : (
-                      <Trash2 className="w-3 h-3 mr-1" />
+                  <div className="flex flex-col gap-1.5">
+                    {user.registrationStatus !== "Confirmed" && (
+                      <button
+                        onClick={() => handleConfirm(user.uniqueId, user.fullName)}
+                        disabled={confirmingId === user.uniqueId}
+                        className="inline-flex items-center px-2.5 py-1.5 rounded-md text-xs font-medium bg-green-50 text-green-700 hover:bg-green-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                      >
+                        {confirmingId === user.uniqueId ? (
+                          <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                        ) : (
+                          <ShieldCheck className="w-3 h-3 mr-1" />
+                        )}
+                        Confirm
+                      </button>
                     )}
-                    Delete
-                  </button>
+                    <button
+                      onClick={() => handleDelete(user.uniqueId, user.fullName)}
+                      disabled={deletingId === user.uniqueId}
+                      className="inline-flex items-center px-2.5 py-1.5 rounded-md text-xs font-medium bg-red-50 text-red-700 hover:bg-red-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    >
+                      {deletingId === user.uniqueId ? (
+                        <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                      ) : (
+                        <Trash2 className="w-3 h-3 mr-1" />
+                      )}
+                      Delete
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}
