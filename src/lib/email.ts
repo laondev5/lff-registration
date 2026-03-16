@@ -131,6 +131,74 @@ export async function sendRegistrationEmail(to: string, name: string, uniqueId: 
     }
 }
 
+export async function sendAccommodationBookingEmail(
+    to: string,
+    name: string,
+    accommodationType: string,
+    amount: string,
+    uniqueId?: string,
+) {
+    const transporter = getTransporter();
+    const isFree = !amount || amount === '0' || amount === 'Free';
+    const amountDisplay = isFree ? 'Free' : `₦${parseInt(amount.toString().replace(/[^0-9]/g, '') || '0').toLocaleString()}`;
+
+    const mailOptions = {
+        from: `"GAC 2026 Registration" <${process.env.GMAIL_USER}>`,
+        to: to,
+        subject: `Accommodation Booking Received - GAC 2026`,
+        html: `
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eee; border-radius: 10px;">
+                <h1 style="color: #4F46E5; text-align: center;">Accommodation Booking Received 🏨</h1>
+                <p>Dear <strong>${name}</strong>,</p>
+                <p>We have received your accommodation booking for the <strong>Global Annual Convention 2026</strong>.</p>
+
+                <div style="background-color: #f0f4ff; padding: 20px; border-radius: 10px; margin: 20px 0; border: 1px solid #c7d2fe;">
+                    <h3 style="margin: 0 0 12px 0; color: #3730a3;">Booking Details</h3>
+                    <table style="width: 100%; border-collapse: collapse;">
+                        <tr>
+                            <td style="padding: 6px 0; color: #555; font-size: 14px;">Accommodation Type:</td>
+                            <td style="padding: 6px 0; font-weight: bold; font-size: 14px;">${accommodationType}</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 6px 0; color: #555; font-size: 14px;">Amount:</td>
+                            <td style="padding: 6px 0; font-weight: bold; font-size: 14px;">${amountDisplay}</td>
+                        </tr>
+                        ${uniqueId ? `<tr>
+                            <td style="padding: 6px 0; color: #555; font-size: 14px;">Registration ID:</td>
+                            <td style="padding: 6px 0; font-weight: bold; font-size: 14px;">${uniqueId}</td>
+                        </tr>` : ''}
+                    </table>
+                </div>
+
+                <div style="background-color: #fffbeb; padding: 15px; border-radius: 8px; margin: 20px 0; border: 1px solid #fde68a;">
+                    <p style="margin: 0; color: #92400e; font-size: 14px;">
+                        <strong>Next Step:</strong> ${isFree ? 'Your accommodation is confirmed. See you at GAC 2026!' : 'Please upload your payment proof on the portal if you have not already done so. Your booking will be confirmed once payment is verified.'}
+                    </p>
+                </div>
+
+                <p style="text-align: center; margin-top: 30px;">
+                    <a href="${process.env.NEXT_PUBLIC_BASE_URL || 'https://lffat40.livingfaithfoundation.org'}" style="background-color: #4F46E5; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px;">Visit Portal</a>
+                </p>
+
+                <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
+                <p style="font-size: 12px; color: #888; text-align: center;">
+                    Living Faith Foundation<br>
+                    GAC 2026 Planning Committee
+                </p>
+            </div>
+        `,
+    };
+
+    try {
+        await transporter.sendMail(mailOptions);
+        console.log(`Accommodation booking email sent to ${to}`);
+        return true;
+    } catch (error) {
+        console.error("Error sending accommodation booking email:", error);
+        return false;
+    }
+}
+
 export async function sendOrderConfirmationEmail(to: string, name: string, orderId: string) {
     const transporter = getTransporter();
 

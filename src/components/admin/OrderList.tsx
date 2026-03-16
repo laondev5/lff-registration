@@ -1,11 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import {
   Package,
   ChevronDown,
   ChevronUp,
+  ChevronLeft,
+  ChevronRight,
   ExternalLink,
   Image as ImageIcon,
 } from "lucide-react";
@@ -38,12 +40,15 @@ interface Order {
   itemsSummary?: string;
 }
 
+const ITEMS_PER_PAGE = 20;
+
 export function OrderList({ initialOrders }: { initialOrders: Order[] }) {
   const router = useRouter();
   const [orders, setOrders] = useState(initialOrders);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [expandedOrder, setExpandedOrder] = useState<string | null>(null);
   const [proofModal, setProofModal] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
 
   const handleStatusUpdate = async (id: string, newStatus: string) => {
     setUpdatingId(id);
@@ -53,7 +58,6 @@ export function OrderList({ initialOrders }: { initialOrders: Order[] }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status: newStatus }),
       });
-
       if (res.ok) {
         setOrders((prev) =>
           prev.map((o) => (o.id === id ? { ...o, status: newStatus } : o)),
@@ -82,11 +86,50 @@ export function OrderList({ initialOrders }: { initialOrders: Order[] }) {
     Cancelled: "bg-red-100 text-red-800",
   };
 
+  const stats = useMemo(() => ({
+    totalOrders: orders.length,
+    pending: orders.filter((o) => o.status === "Pending").length,
+    delivered: orders.filter((o) => o.status === "Delivered").length,
+    totalRevenue: orders.reduce((sum, o) => sum + (parseInt(o.total) || 0), 0),
+  }), [orders]);
+
+  const totalPages = Math.max(1, Math.ceil(orders.length / ITEMS_PER_PAGE));
+
+  const paginatedOrders = useMemo(() => {
+    const start = (currentPage - 1) * ITEMS_PER_PAGE;
+    return orders.slice(start, start + ITEMS_PER_PAGE);
+  }, [orders, currentPage]);
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+    setExpandedOrder(null);
+  };
+
   return (
     <div className="space-y-6">
       <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
         <Package className="w-6 h-6" /> Orders
       </h2>
+
+      {/* Stats Bar */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="bg-white rounded-lg shadow border p-4">
+          <p className="text-xs text-gray-500 uppercase tracking-wider font-medium">Total Orders</p>
+          <p className="text-2xl font-bold text-blue-600 mt-1">{stats.totalOrders}</p>
+        </div>
+        <div className="bg-white rounded-lg shadow border p-4">
+          <p className="text-xs text-gray-500 uppercase tracking-wider font-medium">Pending</p>
+          <p className="text-2xl font-bold text-yellow-500 mt-1">{stats.pending}</p>
+        </div>
+        <div className="bg-white rounded-lg shadow border p-4">
+          <p className="text-xs text-gray-500 uppercase tracking-wider font-medium">Delivered</p>
+          <p className="text-2xl font-bold text-green-600 mt-1">{stats.delivered}</p>
+        </div>
+        <div className="bg-white rounded-lg shadow border p-4">
+          <p className="text-xs text-gray-500 uppercase tracking-wider font-medium">Total Revenue</p>
+          <p className="text-2xl font-bold text-purple-600 mt-1">₦{stats.totalRevenue.toLocaleString()}</p>
+        </div>
+      </div>
 
       {/* Payment Proof Modal */}
       {proofModal && (
@@ -98,11 +141,7 @@ export function OrderList({ initialOrders }: { initialOrders: Order[] }) {
             className="max-w-2xl max-h-[90vh] bg-white rounded-xl p-2 overflow-auto"
             onClick={(e) => e.stopPropagation()}
           >
-            <img
-              src={proofModal}
-              alt="Payment Proof"
-              className="w-full rounded-lg"
-            />
+            <img src={proofModal} alt="Payment Proof" className="w-full rounded-lg" />
             <div className="p-3 text-center">
               <a
                 href={proofModal}
@@ -121,49 +160,29 @@ export function OrderList({ initialOrders }: { initialOrders: Order[] }) {
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
             <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Order ID
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Date
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Customer
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Total
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Proof
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Status
-              </th>
-              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Actions
-              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Order ID</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Customer</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Proof</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
             {orders.length === 0 ? (
               <tr>
-                <td colSpan={7} className="px-6 py-4 text-center text-gray-500">
-                  No orders found.
-                </td>
+                <td colSpan={7} className="px-6 py-4 text-center text-gray-500">No orders found.</td>
               </tr>
             ) : (
-              orders.map((order) => (
+              paginatedOrders.map((order) => (
                 <tbody key={order.id}>
                   <tr
                     className="hover:bg-gray-50 cursor-pointer"
                     onClick={() => toggleExpand(order.id)}
                   >
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 flex items-center gap-2">
-                      {expandedOrder === order.id ? (
-                        <ChevronUp size={16} />
-                      ) : (
-                        <ChevronDown size={16} />
-                      )}
+                      {expandedOrder === order.id ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
                       {order.id}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
@@ -171,28 +190,13 @@ export function OrderList({ initialOrders }: { initialOrders: Order[] }) {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                       <div className="flex flex-col">
-                        <span className="font-medium text-gray-900">
-                          {order.customerName || order.userId}
-                        </span>
-                        {order.customerEmail && (
-                          <span className="text-xs text-gray-400">
-                            {order.customerEmail}
-                          </span>
-                        )}
-                        {order.customerPhone && (
-                          <span className="text-xs text-gray-400">
-                            {order.customerPhone}
-                          </span>
-                        )}
+                        <span className="font-medium text-gray-900">{order.customerName || order.userId}</span>
+                        {order.customerEmail && <span className="text-xs text-gray-400">{order.customerEmail}</span>}
+                        {order.customerPhone && <span className="text-xs text-gray-400">{order.customerPhone}</span>}
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-800">
-                      ₦{order.total}
-                    </td>
-                    <td
-                      className="px-6 py-4 whitespace-nowrap"
-                      onClick={(e) => e.stopPropagation()}
-                    >
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-800">₦{order.total}</td>
+                    <td className="px-6 py-4 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
                       {order.paymentProof ? (
                         <button
                           onClick={() => setProofModal(order.paymentProof!)}
@@ -205,22 +209,15 @@ export function OrderList({ initialOrders }: { initialOrders: Order[] }) {
                       )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span
-                        className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${statusColors[order.status] || "bg-gray-100 text-gray-800"}`}
-                      >
+                      <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${statusColors[order.status] || "bg-gray-100 text-gray-800"}`}>
                         {order.status}
                       </span>
                     </td>
-                    <td
-                      className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium"
-                      onClick={(e) => e.stopPropagation()}
-                    >
+                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium" onClick={(e) => e.stopPropagation()}>
                       <select
                         disabled={updatingId === order.id}
                         value={order.status}
-                        onChange={(e) =>
-                          handleStatusUpdate(order.id, e.target.value)
-                        }
+                        onChange={(e) => handleStatusUpdate(order.id, e.target.value)}
                         className="border-gray-300 rounded-md shadow-sm text-sm focus:border-blue-500 focus:ring-blue-500 p-1 bg-white text-gray-700 font-medium border"
                       >
                         <option value="Pending">Pending</option>
@@ -238,21 +235,13 @@ export function OrderList({ initialOrders }: { initialOrders: Order[] }) {
                           <h4 className="font-bold mb-2">Order Items:</h4>
                           <div className="space-y-2">
                             {order.items.map((item, idx) => {
-                              const itemName =
-                                item.product?.name || item.name || "Unknown";
-                              const itemPrice =
-                                item.product?.price || item.price || "0";
+                              const itemName = item.product?.name || item.name || "Unknown";
+                              const itemPrice = item.product?.price || item.price || "0";
                               return (
-                                <div
-                                  key={idx}
-                                  className="flex items-center gap-3 bg-white p-3 rounded-lg border border-gray-200"
-                                >
+                                <div key={idx} className="flex items-center gap-3 bg-white p-3 rounded-lg border border-gray-200">
                                   <div className="flex-1">
-                                    <span className="font-medium">
-                                      {item.quantity}x {itemName}
-                                    </span>
-                                    {(item.selectedColor ||
-                                      item.selectedSize) && (
+                                    <span className="font-medium">{item.quantity}x {itemName}</span>
+                                    {(item.selectedColor || item.selectedSize) && (
                                       <div className="flex items-center gap-2 mt-1">
                                         {item.selectedColor && (
                                           <span className="inline-flex items-center gap-1 text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full font-medium">
@@ -267,30 +256,16 @@ export function OrderList({ initialOrders }: { initialOrders: Order[] }) {
                                       </div>
                                     )}
                                   </div>
-                                  <span className="text-gray-500">
-                                    ₦{parseInt(itemPrice).toLocaleString()} each
-                                  </span>
-                                  <span className="font-bold">
-                                    ₦
-                                    {(
-                                      parseInt(itemPrice) * item.quantity
-                                    ).toLocaleString()}
-                                  </span>
+                                  <span className="text-gray-500">₦{parseInt(itemPrice).toLocaleString()} each</span>
+                                  <span className="font-bold">₦{(parseInt(itemPrice) * item.quantity).toLocaleString()}</span>
                                 </div>
                               );
                             })}
                           </div>
                           {order.paymentProof && (
                             <div className="mt-4 p-3 bg-green-50 rounded-lg border border-green-200">
-                              <p className="text-sm font-medium text-green-800 mb-2">
-                                Payment Proof:
-                              </p>
-                              <a
-                                href={order.paymentProof}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-blue-600 hover:underline text-sm inline-flex items-center gap-1"
-                              >
+                              <p className="text-sm font-medium text-green-800 mb-2">Payment Proof:</p>
+                              <a href={order.paymentProof} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline text-sm inline-flex items-center gap-1">
                                 <ExternalLink size={14} /> View Payment Proof
                               </a>
                             </div>
@@ -304,6 +279,72 @@ export function OrderList({ initialOrders }: { initialOrders: Order[] }) {
             )}
           </tbody>
         </table>
+
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between px-6 py-3 border-t bg-gray-50">
+            <div className="flex flex-1 justify-between sm:hidden">
+              <button
+                onClick={() => handlePageChange(currentPage - 1)}
+                disabled={currentPage === 1}
+                className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Previous
+              </button>
+              <button
+                onClick={() => handlePageChange(currentPage + 1)}
+                disabled={currentPage === totalPages}
+                className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Next
+              </button>
+            </div>
+            <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+              <p className="text-sm text-gray-700">
+                Showing{" "}
+                <span className="font-medium">{orders.length === 0 ? 0 : (currentPage - 1) * ITEMS_PER_PAGE + 1}</span>
+                {" "}to{" "}
+                <span className="font-medium">{Math.min(currentPage * ITEMS_PER_PAGE, orders.length)}</span>
+                {" "}of <span className="font-medium">{orders.length}</span> results
+              </p>
+              <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
+                <button
+                  onClick={() => handlePageChange(currentPage - 1)}
+                  disabled={currentPage === 1}
+                  className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <ChevronLeft className="h-5 w-5" />
+                </button>
+                {Array.from({ length: totalPages }, (_, i) => i + 1)
+                  .filter((page) => page === 1 || page === totalPages || Math.abs(currentPage - page) <= 1)
+                  .map((page, index, array) => (
+                    <span key={page} className="flex">
+                      {index > 0 && array[index - 1] !== page - 1 && (
+                        <span className="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700">...</span>
+                      )}
+                      <button
+                        onClick={() => handlePageChange(page)}
+                        className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${
+                          currentPage === page
+                            ? "z-10 bg-indigo-50 border-indigo-500 text-indigo-600"
+                            : "bg-white border-gray-300 text-gray-500 hover:bg-gray-50"
+                        }`}
+                      >
+                        {page}
+                      </button>
+                    </span>
+                  ))}
+                <button
+                  onClick={() => handlePageChange(currentPage + 1)}
+                  disabled={currentPage === totalPages}
+                  className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <ChevronRight className="h-5 w-5" />
+                </button>
+              </nav>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
-import { updateAccommodation } from '@/lib/registrationService';
+import { updateAccommodation, getUserById } from '@/lib/registrationService';
+import { sendAccommodationBookingEmail } from '@/lib/email';
 
 export async function POST(request: Request) {
     try {
@@ -20,6 +21,19 @@ export async function POST(request: Request) {
         }
 
         await updateAccommodation(uniqueId, accommodation);
+
+        // Send accommodation confirmation email (non-blocking)
+        getUserById(uniqueId).then((user) => {
+            if (user) {
+                sendAccommodationBookingEmail(
+                    user.email,
+                    user.fullName,
+                    accommodation.type,
+                    String(accommodation.price ?? '0'),
+                    uniqueId
+                ).catch((err) => console.error('Failed to send accommodation email:', err));
+            }
+        }).catch(() => {});
 
         return NextResponse.json({ success: true });
     } catch (error: any) {

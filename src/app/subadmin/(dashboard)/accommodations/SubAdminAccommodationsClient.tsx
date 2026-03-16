@@ -1,13 +1,21 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Search } from "lucide-react";
 
 export default function SubAdminAccommodationsClient({ accommodations }: { accommodations: any[] }) {
   const [searchTerm, setSearchTerm] = useState("");
   const [priceFilter, setPriceFilter] = useState("All");
 
-  const filteredAccommodations = accommodations.filter((acc) => {
+  const stats = useMemo(() => {
+    const total = accommodations.length;
+    const totalSlots = accommodations.reduce((sum, acc) => sum + (parseInt(acc.slots) || 0), 0);
+    const fullyBooked = accommodations.filter((acc) => acc.slots !== "0" && acc.slots && (acc.remainingSlots ?? acc.slots) === 0).length;
+    const available = total - fullyBooked;
+    return { total, totalSlots, fullyBooked, available };
+  }, [accommodations]);
+
+  const filteredAccommodations = useMemo(() => accommodations.filter((acc) => {
     const matchesSearch =
       searchTerm === "" ||
       acc.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -20,15 +28,34 @@ export default function SubAdminAccommodationsClient({ accommodations }: { accom
       (priceFilter === "Paid" && !isFree);
 
     return matchesSearch && matchesPrice;
-  });
+  }), [searchTerm, priceFilter, accommodations]);
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold text-gray-800">Accommodations</h1>
-        <span className="bg-blue-100 text-blue-800 text-sm font-medium px-3 py-1 rounded-full">
-          Total: {filteredAccommodations.length}
-        </span>
+      <h1 className="text-2xl font-bold text-gray-800">Accommodations</h1>
+
+      {/* Stats Bar */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="bg-white rounded-lg shadow border p-4">
+          <p className="text-xs text-gray-500 uppercase tracking-wider font-medium">Total</p>
+          <p className="text-2xl font-bold text-blue-600 mt-1">{stats.total}</p>
+        </div>
+        <div className="bg-white rounded-lg shadow border p-4">
+          <p className="text-xs text-gray-500 uppercase tracking-wider font-medium">Available</p>
+          <p className="text-2xl font-bold text-green-600 mt-1">{stats.available}</p>
+        </div>
+        <div className="bg-white rounded-lg shadow border p-4">
+          <p className="text-xs text-gray-500 uppercase tracking-wider font-medium">Fully Booked</p>
+          <p className="text-2xl font-bold text-red-600 mt-1">{stats.fullyBooked}</p>
+        </div>
+        <div className="bg-white rounded-lg shadow border p-4">
+          <p className="text-xs text-gray-500 uppercase tracking-wider font-medium">Total Slots</p>
+          <p className="text-2xl font-bold text-purple-600 mt-1">{stats.totalSlots || "—"}</p>
+        </div>
+      </div>
+
+      <div className="flex justify-between items-center">
+        <span className="text-sm text-gray-500">{filteredAccommodations.length} result{filteredAccommodations.length !== 1 ? "s" : ""}</span>
       </div>
 
       <div className="flex flex-col sm:flex-row gap-4 mb-6">

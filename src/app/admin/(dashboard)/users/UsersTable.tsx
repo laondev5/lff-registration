@@ -1,10 +1,9 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useTransition } from "react";
 import {
   CheckCircle,
   Loader2,
-  XCircle,
   ChevronLeft,
   ChevronRight,
   Trash2,
@@ -12,6 +11,7 @@ import {
   Download,
   ShieldCheck,
   Mail,
+  RefreshCw,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { toast } from "react-hot-toast";
@@ -38,6 +38,7 @@ interface User {
 
 export default function UsersTable({ users }: { users: User[] }) {
   const router = useRouter();
+  const [isPending, startTransition] = useTransition();
   const [currentPage, setCurrentPage] = useState(1);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
@@ -45,6 +46,19 @@ export default function UsersTable({ users }: { users: User[] }) {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
   const usersPerPage = 20;
+
+  const stats = useMemo(() => ({
+    total: users.length,
+    confirmed: users.filter((u) => u.registrationStatus === "Confirmed").length,
+    pending: users.filter((u) => u.registrationStatus === "Pending").length,
+    withAccommodation: users.filter((u) => u.needsAccommodation === "Yes").length,
+  }), [users]);
+
+  const handleRefresh = () => {
+    startTransition(() => {
+      router.refresh();
+    });
+  };
 
   const filteredUsers = useMemo(() => {
     return users.filter((user) => {
@@ -183,6 +197,26 @@ export default function UsersTable({ users }: { users: User[] }) {
 
   return (
     <div className="space-y-4">
+      {/* Stats Bar */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="bg-white rounded-lg shadow border p-4">
+          <p className="text-xs text-gray-500 uppercase tracking-wider font-medium">Total Registered</p>
+          <p className="text-2xl font-bold text-blue-600 mt-1">{stats.total}</p>
+        </div>
+        <div className="bg-white rounded-lg shadow border p-4">
+          <p className="text-xs text-gray-500 uppercase tracking-wider font-medium">Confirmed</p>
+          <p className="text-2xl font-bold text-green-600 mt-1">{stats.confirmed}</p>
+        </div>
+        <div className="bg-white rounded-lg shadow border p-4">
+          <p className="text-xs text-gray-500 uppercase tracking-wider font-medium">Pending</p>
+          <p className="text-2xl font-bold text-yellow-500 mt-1">{stats.pending}</p>
+        </div>
+        <div className="bg-white rounded-lg shadow border p-4">
+          <p className="text-xs text-gray-500 uppercase tracking-wider font-medium">With Accommodation</p>
+          <p className="text-2xl font-bold text-purple-600 mt-1">{stats.withAccommodation}</p>
+        </div>
+      </div>
+
       <div className="flex flex-col sm:flex-row gap-4">
         <div className="flex-1 relative">
           <input
@@ -204,6 +238,15 @@ export default function UsersTable({ users }: { users: User[] }) {
           <option value="Pending">Pending</option>
         </select>
         
+        <button
+          onClick={handleRefresh}
+          disabled={isPending}
+          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-70 disabled:cursor-not-allowed w-full sm:w-auto justify-center"
+        >
+          {isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+          Refresh
+        </button>
+
         <div className="relative group z-20">
           <button className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition focus:outline-none focus:ring-2 focus:ring-green-500 w-full sm:w-auto justify-center">
             <Download className="w-4 h-4" /> Export

@@ -6,9 +6,11 @@ import {
   LayoutDashboard,
   Users,
   Home,
+  ClipboardList,
   LogOut,
   Menu,
   X,
+  type LucideIcon,
 } from "lucide-react";
 import { usePathname } from "next/navigation";
 
@@ -81,6 +83,14 @@ export function SubAdminSidebar({ onLogout }: { onLogout: () => Promise<void> })
             isActive={isActive("/subadmin/accommodations")}
             onClick={closeSidebar}
           />
+
+          <NavItem
+            href="/subadmin/booking-requests"
+            icon={ClipboardList}
+            label="Booking Requests"
+            isActive={isActive("/subadmin/booking-requests")}
+            onClick={closeSidebar}
+          />
         </nav>
 
         <div className="p-4 border-t">
@@ -108,7 +118,7 @@ function NavItem({
   onClick,
 }: {
   href: string;
-  icon: any;
+  icon: LucideIcon;
   label: string;
   isActive: boolean;
   onClick: () => void;

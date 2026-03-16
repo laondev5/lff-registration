@@ -1,9 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Edit, Trash2, X, LayoutGrid, List, Search } from "lucide-react";
-import Image from "next/image";
+import { Plus, Edit, Trash2, X, LayoutGrid, List, Search, ChevronLeft, ChevronRight } from "lucide-react";
 
 interface Accommodation {
   id: string;
@@ -19,6 +18,8 @@ interface Accommodation {
   days?: string;
   accessTags?: string[];
 }
+
+const ITEMS_PER_PAGE = 15;
 
 const TITLES = [
   "Child",
@@ -51,8 +52,16 @@ export default function AccommodationsManager({
 
   const [searchTerm, setSearchTerm] = useState("");
   const [priceFilter, setPriceFilter] = useState("All");
+  const [currentPage, setCurrentPage] = useState(1);
 
-  const filteredAccommodations = accommodations.filter((acc) => {
+  const stats = useMemo(() => ({
+    total: accommodations.length,
+    fullyBooked: accommodations.filter((a) => a.isFullyBooked).length,
+    available: accommodations.filter((a) => !a.isFullyBooked).length,
+    totalSlots: accommodations.reduce((sum, a) => sum + (parseInt(a.slots) || 0), 0),
+  }), [accommodations]);
+
+  const filteredAccommodations = useMemo(() => accommodations.filter((acc) => {
     const matchesSearch =
       searchTerm === "" ||
       acc.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -64,7 +73,18 @@ export default function AccommodationsManager({
       (priceFilter === "Paid" && acc.price !== "Free");
 
     return matchesSearch && matchesPrice;
-  });
+  }), [accommodations, searchTerm, priceFilter]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredAccommodations.length / ITEMS_PER_PAGE));
+
+  const paginatedAccommodations = useMemo(() => {
+    const start = (currentPage - 1) * ITEMS_PER_PAGE;
+    return filteredAccommodations.slice(start, start + ITEMS_PER_PAGE);
+  }, [filteredAccommodations, currentPage]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, priceFilter]);
 
   // Form State
   const [currentId, setCurrentId] = useState("");
@@ -226,6 +246,26 @@ export default function AccommodationsManager({
         </div>
       </div>
 
+      {/* Stats Bar */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-2">
+        <div className="bg-white rounded-lg shadow border p-4">
+          <p className="text-xs text-gray-500 uppercase tracking-wider font-medium">Total</p>
+          <p className="text-2xl font-bold text-blue-600 mt-1">{stats.total}</p>
+        </div>
+        <div className="bg-white rounded-lg shadow border p-4">
+          <p className="text-xs text-gray-500 uppercase tracking-wider font-medium">Available</p>
+          <p className="text-2xl font-bold text-green-600 mt-1">{stats.available}</p>
+        </div>
+        <div className="bg-white rounded-lg shadow border p-4">
+          <p className="text-xs text-gray-500 uppercase tracking-wider font-medium">Fully Booked</p>
+          <p className="text-2xl font-bold text-red-600 mt-1">{stats.fullyBooked}</p>
+        </div>
+        <div className="bg-white rounded-lg shadow border p-4">
+          <p className="text-xs text-gray-500 uppercase tracking-wider font-medium">Total Slots</p>
+          <p className="text-2xl font-bold text-purple-600 mt-1">{stats.totalSlots}</p>
+        </div>
+      </div>
+
       <div className="flex flex-col sm:flex-row gap-4 mb-6">
         <div className="flex-1 relative">
           <input
@@ -250,7 +290,7 @@ export default function AccommodationsManager({
 
       {viewMode === "grid" ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredAccommodations.map((acc) => (
+          {paginatedAccommodations.map((acc) => (
             <div
               key={acc.id}
               className="bg-white rounded-lg shadow-md overflow-hidden border"
@@ -342,7 +382,7 @@ export default function AccommodationsManager({
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {filteredAccommodations.length === 0 ? (
+                {paginatedAccommodations.length === 0 ? (
                   <tr>
                     <td
                       colSpan={6}
@@ -352,7 +392,7 @@ export default function AccommodationsManager({
                     </td>
                   </tr>
                 ) : (
-                  filteredAccommodations.map((acc) => (
+                  paginatedAccommodations.map((acc) => (
                     <tr key={acc.id} className="hover:bg-gray-50">
                       <td className="px-6 py-4 whitespace-nowrap">
                         <img
@@ -421,6 +461,72 @@ export default function AccommodationsManager({
                 )}
               </tbody>
             </table>
+          </div>
+        </div>
+      )}
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between px-4 py-3 bg-white rounded-lg shadow border">
+          <div className="flex flex-1 justify-between sm:hidden">
+            <button
+              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+              disabled={currentPage === 1}
+              className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Previous
+            </button>
+            <button
+              onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+              disabled={currentPage === totalPages}
+              className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Next
+            </button>
+          </div>
+          <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+            <p className="text-sm text-gray-700">
+              Showing{" "}
+              <span className="font-medium">{filteredAccommodations.length === 0 ? 0 : (currentPage - 1) * ITEMS_PER_PAGE + 1}</span>
+              {" "}to{" "}
+              <span className="font-medium">{Math.min(currentPage * ITEMS_PER_PAGE, filteredAccommodations.length)}</span>
+              {" "}of <span className="font-medium">{filteredAccommodations.length}</span> results
+            </p>
+            <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
+              <button
+                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+                className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <ChevronLeft className="h-5 w-5" />
+              </button>
+              {Array.from({ length: totalPages }, (_, i) => i + 1)
+                .filter((page) => page === 1 || page === totalPages || Math.abs(currentPage - page) <= 1)
+                .map((page, index, array) => (
+                  <span key={page} className="flex">
+                    {index > 0 && array[index - 1] !== page - 1 && (
+                      <span className="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700">...</span>
+                    )}
+                    <button
+                      onClick={() => setCurrentPage(page)}
+                      className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${
+                        currentPage === page
+                          ? "z-10 bg-indigo-50 border-indigo-500 text-indigo-600"
+                          : "bg-white border-gray-300 text-gray-500 hover:bg-gray-50"
+                      }`}
+                    >
+                      {page}
+                    </button>
+                  </span>
+                ))}
+              <button
+                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                disabled={currentPage === totalPages}
+                className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <ChevronRight className="h-5 w-5" />
+              </button>
+            </nav>
           </div>
         </div>
       )}

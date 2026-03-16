@@ -3,6 +3,7 @@ import { uploadToCloudinary } from '@/lib/cloudinary';
 import { connectDB } from '@/lib/mongodb';
 import Booking from '@/models/Booking';
 import { getAllBookings } from '@/lib/bookingService';
+import { sendAccommodationBookingEmail } from '@/lib/email';
 
 export async function GET() {
     try {
@@ -50,6 +51,11 @@ export async function POST(request: Request) {
             paymentProof: paymentProofUrl,
             uniqueId: uniqueId || '',
         });
+
+        // Send confirmation email (non-blocking)
+        sendAccommodationBookingEmail(email, name, accommodationType, amount, uniqueId || undefined).catch(
+            (err) => console.error('Failed to send accommodation booking email:', err)
+        );
 
         return NextResponse.json({ success: true, id: newBooking._id.toString() });
     } catch (error: any) {

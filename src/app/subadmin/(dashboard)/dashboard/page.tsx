@@ -1,7 +1,24 @@
 import { getUsers } from "@/lib/registrationService";
 import { getAccommodations } from "@/lib/accommodationService";
+import { RegistrationChart } from "@/components/admin/RegistrationChart";
 
 export const dynamic = "force-dynamic";
+
+function buildChartData(users: { createdAt?: string; registrationStatus: string }[]) {
+  const byDate: Record<string, { registrations: number; confirmed: number }> = {};
+
+  for (const user of users) {
+    if (!user.createdAt) continue;
+    const date = new Date(user.createdAt).toISOString().split("T")[0];
+    if (!byDate[date]) byDate[date] = { registrations: 0, confirmed: 0 };
+    byDate[date].registrations++;
+    if (user.registrationStatus === "Confirmed") byDate[date].confirmed++;
+  }
+
+  return Object.entries(byDate)
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([date, counts]) => ({ date, ...counts }));
+}
 
 export default async function SubAdminDashboardPage() {
   const users = await getUsers();
@@ -12,6 +29,8 @@ export default async function SubAdminDashboardPage() {
   const pendingCount = users.filter(
     (u) => u.registrationStatus !== "Confirmed",
   ).length;
+
+  const chartData = buildChartData(users);
 
   return (
     <div>
@@ -28,18 +47,14 @@ export default async function SubAdminDashboardPage() {
         </div>
 
         <div className="bg-white p-6 rounded-lg shadow-sm border">
-          <h3 className="text-gray-500 text-sm font-medium">
-            Confirmed
-          </h3>
+          <h3 className="text-gray-500 text-sm font-medium">Confirmed</h3>
           <p className="text-3xl font-bold text-green-600 mt-2">
             {confirmedCount}
           </p>
         </div>
 
         <div className="bg-white p-6 rounded-lg shadow-sm border">
-          <h3 className="text-gray-500 text-sm font-medium">
-            Pending
-          </h3>
+          <h3 className="text-gray-500 text-sm font-medium">Pending</h3>
           <p className="text-3xl font-bold text-yellow-600 mt-2">
             {pendingCount}
           </p>
@@ -53,6 +68,14 @@ export default async function SubAdminDashboardPage() {
             {accommodations.length}
           </p>
         </div>
+      </div>
+
+      {/* Registrations Over Time Chart */}
+      <div className="mt-8 bg-white rounded-lg shadow-sm border p-6">
+        <h2 className="text-lg font-semibold text-gray-800 mb-4">
+          Registrations Over Time
+        </h2>
+        <RegistrationChart data={chartData} />
       </div>
 
       <div className="mt-8">
@@ -99,9 +122,9 @@ export default async function SubAdminDashboardPage() {
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {new Date(
-                        parseInt(user.uniqueId?.split("-")[1] || "0"),
-                      ).toLocaleDateString()}
+                      {user.createdAt
+                        ? new Date(user.createdAt).toLocaleDateString()
+                        : "—"}
                     </td>
                   </tr>
                 ))}

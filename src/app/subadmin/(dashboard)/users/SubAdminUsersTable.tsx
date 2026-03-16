@@ -101,8 +101,35 @@ export default function SubAdminUsersTable({ users }: { users: User[] }) {
     saveAs(blob, `registrations_export_${new Date().toISOString().split('T')[0]}.xlsx`);
   };
 
+  const stats = useMemo(() => ({
+    total: users.length,
+    confirmed: users.filter((u) => u.registrationStatus === "Confirmed").length,
+    pending: users.filter((u) => u.registrationStatus !== "Confirmed").length,
+    withAccommodation: users.filter((u) => u.needsAccommodation === "Yes" || u.needsAccommodation === "Required").length,
+  }), [users]);
+
   return (
     <div className="space-y-4">
+      {/* Stats Bar */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="bg-white rounded-lg shadow border p-4">
+          <p className="text-xs text-gray-500 uppercase tracking-wider font-medium">Total Registered</p>
+          <p className="text-2xl font-bold text-blue-600 mt-1">{stats.total}</p>
+        </div>
+        <div className="bg-white rounded-lg shadow border p-4">
+          <p className="text-xs text-gray-500 uppercase tracking-wider font-medium">Confirmed</p>
+          <p className="text-2xl font-bold text-green-600 mt-1">{stats.confirmed}</p>
+        </div>
+        <div className="bg-white rounded-lg shadow border p-4">
+          <p className="text-xs text-gray-500 uppercase tracking-wider font-medium">Pending</p>
+          <p className="text-2xl font-bold text-yellow-500 mt-1">{stats.pending}</p>
+        </div>
+        <div className="bg-white rounded-lg shadow border p-4">
+          <p className="text-xs text-gray-500 uppercase tracking-wider font-medium">With Accommodation</p>
+          <p className="text-2xl font-bold text-purple-600 mt-1">{stats.withAccommodation}</p>
+        </div>
+      </div>
+
       <div className="flex flex-col sm:flex-row gap-4">
         <div className="flex-1 relative">
           <input

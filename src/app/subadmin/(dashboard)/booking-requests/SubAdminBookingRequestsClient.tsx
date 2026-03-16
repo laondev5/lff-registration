@@ -1,10 +1,7 @@
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
-import { useRouter } from "next/navigation";
-import { ClipboardList, ExternalLink, Image as ImageIcon, Search, Download, ChevronLeft, ChevronRight } from "lucide-react";
-import * as XLSX from "xlsx";
-import { saveAs } from "file-saver";
+import { ClipboardList, ExternalLink, Image as ImageIcon, Search, ChevronLeft, ChevronRight } from "lucide-react";
 
 interface BookingRequest {
   id: string;
@@ -21,30 +18,26 @@ interface BookingRequest {
   isRegistration?: boolean;
 }
 
-export default function BookingRequestsClient({
+const ITEMS_PER_PAGE = 20;
+
+export default function SubAdminBookingRequestsClient({
   initialBookings,
 }: {
   initialBookings: BookingRequest[];
 }) {
-  const router = useRouter();
-  const [bookings, setBookings] = useState(initialBookings);
-  const [updatingId, setUpdatingId] = useState<string | null>(null);
-  const [proofModal, setProofModal] = useState<string | null>(null);
-  const [currentPage, setCurrentPage] = useState(1);
-
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
-
-  const ITEMS_PER_PAGE = 20;
+  const [currentPage, setCurrentPage] = useState(1);
+  const [proofModal, setProofModal] = useState<string | null>(null);
 
   const stats = useMemo(() => ({
-    total: bookings.length,
-    confirmed: bookings.filter((b) => b.status === "Confirmed").length,
-    pending: bookings.filter((b) => b.status === "Pending").length,
-    rejected: bookings.filter((b) => b.status === "Rejected").length,
-  }), [bookings]);
+    total: initialBookings.length,
+    confirmed: initialBookings.filter((b) => b.status === "Confirmed").length,
+    pending: initialBookings.filter((b) => b.status === "Pending").length,
+    rejected: initialBookings.filter((b) => b.status === "Rejected").length,
+  }), [initialBookings]);
 
-  const filteredBookings = useMemo(() => bookings.filter((booking) => {
+  const filteredBookings = useMemo(() => initialBookings.filter((booking) => {
     const searchString = searchTerm.toLowerCase();
     const matchesSearch =
       searchTerm === "" ||
@@ -58,7 +51,7 @@ export default function BookingRequestsClient({
       statusFilter === "All" || booking.status === statusFilter;
 
     return matchesSearch && matchesStatus;
-  }), [bookings, searchTerm, statusFilter]);
+  }), [initialBookings, searchTerm, statusFilter]);
 
   const totalPages = Math.max(1, Math.ceil(filteredBookings.length / ITEMS_PER_PAGE));
 
@@ -70,63 +63,6 @@ export default function BookingRequestsClient({
   useEffect(() => {
     setCurrentPage(1);
   }, [searchTerm, statusFilter]);
-
-  const handleStatusUpdate = async (id: string, newStatus: string) => {
-    setUpdatingId(id);
-    try {
-      const res = await fetch(`/api/booking-requests/${id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: newStatus }),
-      });
-
-      if (res.ok) {
-        setBookings((prev) =>
-          prev.map((b) => (b.id === id ? { ...b, status: newStatus } : b)),
-        );
-        router.refresh();
-      } else {
-        alert("Failed to update status");
-      }
-    } catch (error) {
-      console.error(error);
-      alert("Error updating status");
-    } finally {
-      setUpdatingId(null);
-    }
-  };
-
-  const getExportData = () => {
-    return filteredBookings.map(booking => ({
-      ID: booking.id,
-      Customer: booking.name,
-      Email: booking.email,
-      Phone: booking.phone,
-      "Unique ID": booking.uniqueId || "N/A",
-      "Accommodation Type": booking.accommodationType,
-      "Amount Paid": booking.amount,
-      Date: new Date(booking.createdAt).toLocaleDateString(),
-      Status: booking.status
-    }));
-  };
-
-  const exportToCSV = () => {
-    const data = getExportData();
-    const worksheet = XLSX.utils.json_to_sheet(data);
-    const csvOutput = XLSX.utils.sheet_to_csv(worksheet);
-    const blob = new Blob([csvOutput], { type: "text/csv;charset=utf-8;" });
-    saveAs(blob, `booking_requests_export_${new Date().toISOString().split('T')[0]}.csv`);
-  };
-
-  const exportToExcel = () => {
-    const data = getExportData();
-    const worksheet = XLSX.utils.json_to_sheet(data);
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Booking Requests");
-    const excelBuffer = XLSX.write(workbook, { bookType: "xlsx", type: "array" });
-    const blob = new Blob([excelBuffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;charset=UTF-8" });
-    saveAs(blob, `booking_requests_export_${new Date().toISOString().split('T')[0]}.xlsx`);
-  };
 
   const statusColors: Record<string, string> = {
     Pending: "bg-yellow-100 text-yellow-800",
@@ -170,11 +106,7 @@ export default function BookingRequestsClient({
             className="max-w-2xl max-h-[90vh] bg-white rounded-xl p-2 overflow-auto"
             onClick={(e) => e.stopPropagation()}
           >
-            <img
-              src={proofModal}
-              alt="Payment Proof"
-              className="w-full rounded-lg"
-            />
+            <img src={proofModal} alt="Payment Proof" className="w-full rounded-lg" />
             <div className="p-3 text-center">
               <a
                 href={proofModal}
@@ -193,7 +125,7 @@ export default function BookingRequestsClient({
         <div className="flex-1 relative">
           <input
             type="text"
-            placeholder="Search bookings by name, email, phone, or ID..."
+            placeholder="Search by name, email, phone, or ID..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -210,92 +142,41 @@ export default function BookingRequestsClient({
           <option value="Pending">Pending</option>
           <option value="Rejected">Rejected</option>
         </select>
-        
-        <div className="relative group z-20">
-          <button className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition focus:outline-none focus:ring-2 focus:ring-green-500 w-full sm:w-auto justify-center">
-            <Download className="w-4 h-4" /> Export
-          </button>
-          <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg border border-gray-100 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all">
-            <ul className="py-1">
-              <li>
-                <button
-                  onClick={exportToCSV}
-                  className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                >
-                  Export to CSV
-                </button>
-              </li>
-              <li>
-                <button
-                  onClick={exportToExcel}
-                  className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                >
-                  Export to Excel
-                </button>
-              </li>
-            </ul>
-          </div>
-        </div>
       </div>
 
       <div className="bg-white rounded-lg shadow overflow-x-auto">
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
             <tr>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                ID
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                Customer
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                Accommodation
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                Amount
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                Proof
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                Date
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                Status
-              </th>
-              <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">
-                Actions
-              </th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Customer</th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Accommodation</th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Amount</th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Proof</th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-200">
             {paginatedBookings.length === 0 ? (
               <tr>
-                <td colSpan={8} className="px-4 py-8 text-center text-gray-500">
+                <td colSpan={6} className="px-4 py-8 text-center text-gray-500">
                   No booking requests found.
                 </td>
               </tr>
             ) : (
               paginatedBookings.map((booking) => (
                 <tr key={booking.id} className="hover:bg-gray-50">
-                  <td className="px-4 py-3 text-sm font-mono text-gray-600">
-                    {booking.id}
-                  </td>
                   <td className="px-4 py-3">
-                    <div className="text-sm font-medium text-gray-900">
-                      {booking.name}
-                    </div>
+                    <div className="text-sm font-medium text-gray-900">{booking.name}</div>
                     <div className="text-xs text-gray-500">{booking.email}</div>
                     <div className="text-xs text-gray-500">{booking.phone}</div>
                     {booking.uniqueId && (
                       <span className="text-xs bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded">
-                        Registered: {booking.uniqueId}
+                        {booking.uniqueId}
                       </span>
                     )}
                   </td>
-                  <td className="px-4 py-3 text-sm text-gray-700">
-                    {booking.accommodationType}
-                  </td>
+                  <td className="px-4 py-3 text-sm text-gray-700">{booking.accommodationType}</td>
                   <td className="px-4 py-3 text-sm font-bold text-gray-800">
                     ₦{parseInt(booking.amount || "0").toLocaleString()}
                   </td>
@@ -315,31 +196,9 @@ export default function BookingRequestsClient({
                     {new Date(booking.createdAt).toLocaleDateString()}
                   </td>
                   <td className="px-4 py-3">
-                    <span
-                      className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${statusColors[booking.status] || "bg-gray-100 text-gray-800"}`}
-                    >
+                    <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${statusColors[booking.status] || "bg-gray-100 text-gray-800"}`}>
                       {booking.status}
                     </span>
-                  </td>
-                  <td className="px-4 py-3 text-right">
-                    {booking.isRegistration ? (
-                        <span className="text-xs text-gray-400 italic">
-                            Managed in Users
-                        </span>
-                    ) : (
-                        <select
-                        disabled={updatingId === booking.id}
-                        value={booking.status}
-                        onChange={(e) =>
-                            handleStatusUpdate(booking.id, e.target.value)
-                        }
-                        className="border-gray-300 rounded-md shadow-sm text-sm p-1 bg-white text-gray-700 font-medium border focus:border-blue-500 focus:ring-blue-500"
-                        >
-                        <option value="Pending">Pending</option>
-                        <option value="Confirmed">Confirmed</option>
-                        <option value="Rejected">Rejected</option>
-                        </select>
-                    )}
                   </td>
                 </tr>
               ))
