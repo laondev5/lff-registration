@@ -19,6 +19,7 @@ import {
   Check,
 } from "lucide-react";
 import Link from "next/link";
+import { StoreDeadlineBanner } from "@/components/store/StoreDeadlineBanner";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -184,7 +185,9 @@ export default function CheckoutPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background py-12 px-4">
+    <div className="min-h-screen bg-background">
+      <StoreDeadlineBanner />
+      <div className="py-12 px-4">
       <div className="container mx-auto max-w-4xl">
         {/* Step Indicator */}
         <div className="flex items-center justify-center mb-10 gap-2">
@@ -466,6 +469,7 @@ export default function CheckoutPage() {
             {/* Step 3: Removed Upload Proof Step */}
           </div>
         </div>
+      </div>
       </div>
     </div>
   );

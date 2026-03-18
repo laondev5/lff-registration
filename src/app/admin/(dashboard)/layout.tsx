@@ -1,5 +1,3 @@
-// Admin dashboard layout with sidebar
-
 import { redirect } from "next/navigation";
 import { isAuthenticated, logoutAdmin } from "@/lib/adminAuth";
 import { AdminSidebar } from "@/components/admin/Sidebar";
@@ -15,7 +13,6 @@ export default async function AdminDashboardLayout({
     redirect("/admin/login");
   }
 
-  // Server action wrapper for logout
   async function handleLogout() {
     "use server";
     await logoutAdmin();
@@ -23,11 +20,11 @@ export default async function AdminDashboardLayout({
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col md:flex-row">
+    <div className="bg-gray-50 flex flex-col md:flex-row md:h-screen md:overflow-hidden">
       <AdminSidebar onLogout={handleLogout} />
 
       {/* Main Content */}
-      <main className="flex-1 overflow-auto p-4 md:p-8 pt-16 md:pt-8 w-full">
+      <main className="flex-1 overflow-y-auto p-4 md:p-8 pt-16 md:pt-8 w-full">
         {children}
       </main>
     </div>

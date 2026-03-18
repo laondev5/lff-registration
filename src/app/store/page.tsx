@@ -1,6 +1,7 @@
 import { getProducts } from "@/lib/storeService";
 import { ProductGrid } from "@/components/store/ProductGrid";
-import { ShoppingBag, Sparkles, Truck } from "lucide-react";
+import { StoreDeadlineBanner } from "@/components/store/StoreDeadlineBanner";
+import { ShoppingBag, Truck } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
@@ -9,6 +10,7 @@ export default async function StorePage() {
 
   return (
     <main className="min-h-screen bg-background text-foreground">
+      <StoreDeadlineBanner />
       {/* Hero Banner */}
       <section className="hero-gradient py-16 md:py-24 px-4 border-b border-white/5">
         <div className="container mx-auto text-center">

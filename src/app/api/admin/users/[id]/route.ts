@@ -84,6 +84,37 @@ export async function POST(
     }
 }
 
+export async function PUT(
+    request: NextRequest,
+    { params }: { params: Promise<{ id: string }> }
+) {
+    try {
+        const { id } = await params;
+        const { email } = await request.json();
+
+        if (!email || typeof email !== 'string' || !email.includes('@')) {
+            return NextResponse.json({ success: false, error: 'Invalid email address.' }, { status: 400 });
+        }
+
+        await connectDB();
+        const reg = await Registration.findOneAndUpdate(
+            { uniqueId: id },
+            { email: email.trim().toLowerCase() },
+            { new: true }
+        );
+
+        if (!reg) {
+            return NextResponse.json({ success: false, error: 'User not found.' }, { status: 404 });
+        }
+
+        return NextResponse.json({ success: true, message: `Email updated to ${email.trim()}.` });
+    } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : 'Unknown error';
+        console.error('Update email error:', error);
+        return NextResponse.json({ success: false, error: message }, { status: 500 });
+    }
+}
+
 export async function DELETE(
     request: NextRequest,
     { params }: { params: Promise<{ id: string }> }

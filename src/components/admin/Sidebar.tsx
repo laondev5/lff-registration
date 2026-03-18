@@ -13,6 +13,8 @@ import {
   ClipboardList,
   Menu,
   X,
+  Banknote,
+  type LucideIcon,
 } from "lucide-react";
 import { usePathname } from "next/navigation";
 
@@ -44,13 +46,12 @@ export function AdminSidebar({ onLogout }: { onLogout: () => Promise<void> }) {
 
       {/* Sidebar */}
       <aside
-        className={`fixed md:static inset-y-0 left-0 z-40 w-64 bg-white shadow-md flex-col transition-transform duration-300 transform ${
+        className={`fixed md:sticky md:top-0 inset-y-0 left-0 z-40 w-64 bg-white shadow-md flex flex-col flex-shrink-0 transition-transform duration-300 transform ${
           isOpen ? "translate-x-0" : "-translate-x-full"
-        } md:translate-x-0 md:flex h-full`}
+        } md:translate-x-0 h-screen overflow-y-auto`}
       >
         <div className="p-6 border-b flex items-center justify-between md:justify-start">
           <h1 className="text-xl font-bold text-gray-800">Admin Dashboard</h1>
-          {/* Close button inside sidebar (mobile only) */}
           <button
             onClick={closeSidebar}
             className="md:hidden p-1 text-gray-500"
@@ -89,6 +90,14 @@ export function AdminSidebar({ onLogout }: { onLogout: () => Promise<void> }) {
             icon={ClipboardList}
             label="Booking Requests"
             isActive={isActive("/admin/booking-requests")}
+            onClick={closeSidebar}
+          />
+
+          <NavItem
+            href="/admin/paystack-payments"
+            icon={Banknote}
+            label="Paystack Payments"
+            isActive={isActive("/admin/paystack-payments")}
             onClick={closeSidebar}
           />
 
@@ -150,7 +159,7 @@ function NavItem({
   onClick,
 }: {
   href: string;
-  icon: any;
+  icon: LucideIcon;
   label: string;
   isActive: boolean;
   onClick: () => void;

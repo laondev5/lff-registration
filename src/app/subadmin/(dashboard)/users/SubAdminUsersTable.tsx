@@ -105,7 +105,7 @@ export default function SubAdminUsersTable({ users }: { users: User[] }) {
     total: users.length,
     confirmed: users.filter((u) => u.registrationStatus === "Confirmed").length,
     pending: users.filter((u) => u.registrationStatus !== "Confirmed").length,
-    withAccommodation: users.filter((u) => u.needsAccommodation === "Yes" || u.needsAccommodation === "Required").length,
+    withAccommodation: users.filter((u) => !!u.needsAccommodation && u.needsAccommodation !== "No").length,
   }), [users]);
 
   return (

@@ -4,6 +4,7 @@ import { useCartStore } from "@/store/useCartStore";
 import Link from "next/link";
 import { Trash2, ChevronRight, ShoppingBag, Minus, Plus } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { StoreDeadlineBanner } from "@/components/store/StoreDeadlineBanner";
 
 export default function CartPage() {
   const { items, removeItem, updateQuantity, getTotal, getEffectivePrice } =
@@ -30,7 +31,9 @@ export default function CartPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background py-12 px-4">
+    <div className="min-h-screen bg-background">
+      <StoreDeadlineBanner />
+      <div className="py-12 px-4">
       <div className="container mx-auto max-w-4xl">
         <h1 className="text-3xl font-bold text-white mb-8">Shopping Cart</h1>
 
@@ -211,6 +214,7 @@ export default function CartPage() {
             </div>
           </div>
         </div>
+      </div>
       </div>
     </div>
   );
