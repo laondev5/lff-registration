@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { connectDB } from '@/lib/mongodb';
 import Registration from '@/models/Registration';
+import TrashedRegistration from '@/models/TrashedRegistration';
 import { sendRegistrationEmail } from '@/lib/email';
 import * as QRCode from 'qrcode';
 
@@ -124,28 +125,38 @@ export async function DELETE(
 
         await connectDB();
 
-        // Find and delete the registration
-        const deletedUser = await Registration.findOneAndDelete({ uniqueId: id });
+        const reg = await Registration.findOne({ uniqueId: id });
 
-        if (!deletedUser) {
+        if (!reg) {
             return NextResponse.json(
                 { success: false, error: 'User not found' },
                 { status: 404 }
             );
         }
 
-        // The accommodation slot is automatically freed because
-        // getAccommodationsWithAvailability() counts registrations dynamically.
-        // By deleting this registration, the count decreases and the slot opens up.
+        // Move to trash (soft delete) — removes from Registration so it no longer
+        // counts in stats or accommodations, but is recoverable from the trash page.
+        await TrashedRegistration.findOneAndUpdate(
+            { uniqueId: reg.uniqueId },
+            {
+                ...reg.toObject(),
+                trashedAt: new Date(),
+                trashedFrom: 'users',
+                reRegisterEmailSent: false,
+            },
+            { upsert: true, new: true }
+        );
+
+        await Registration.deleteOne({ uniqueId: id });
 
         return NextResponse.json({
             success: true,
-            message: 'Registration deleted successfully. Accommodation slot has been freed.',
+            message: 'Registration moved to trash. Accommodation slot has been freed.',
             deletedUser: {
-                uniqueId: deletedUser.uniqueId,
-                fullName: deletedUser.fullName,
-                accommodationType: deletedUser.accommodationType,
-                needsAccommodation: deletedUser.needsAccommodation,
+                uniqueId: reg.uniqueId,
+                fullName: reg.fullName,
+                accommodationType: reg.accommodationType,
+                needsAccommodation: reg.needsAccommodation,
             }
         });
     } catch (error: any) {

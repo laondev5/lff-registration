@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { connectDB } from '@/lib/mongodb';
 import Registration from '@/models/Registration';
+import DismissedTransaction from '@/models/DismissedTransaction';
 
 const PER_PAGE = 100;
 
@@ -81,10 +82,13 @@ export async function GET() {
 
         await connectDB();
 
-        const [dbByRef, dbByUid] = await Promise.all([
+        const [dbByRef, dbByUid, dismissedDocs] = await Promise.all([
             Registration.find({ paymentReference: { $in: references } }).lean(),
             Registration.find({ uniqueId: { $in: uniqueIdsFromMeta } }).lean(),
+            DismissedTransaction.find({ reference: { $in: references } }).lean(),
         ]);
+
+        const dismissedSet = new Set(dismissedDocs.map((d: { reference: string }) => d.reference));
 
         const refMap: Record<string, DBRegistration> = {};
         for (const r of dbByRef) refMap[(r as DBRegistration).paymentReference] = r as DBRegistration;
@@ -92,39 +96,61 @@ export async function GET() {
         const uidMap: Record<string, DBRegistration> = {};
         for (const r of dbByUid) uidMap[(r as DBRegistration).uniqueId] = r as DBRegistration;
 
-        // 5. Build result
-        const result = regTransactions.map((t) => {
-            const dbReg =
-                refMap[t.reference] ||
-                uidMap[t.metadata?.uniqueId || ''] ||
-                null;
+        // 5. Build result (skip dismissed entries)
+        const result = regTransactions
+            .filter((t) => !dismissedSet.has(t.reference))
+            .map((t) => {
+                const dbReg =
+                    refMap[t.reference] ||
+                    uidMap[t.metadata?.uniqueId || ''] ||
+                    null;
 
-            const fullName =
-                dbReg?.fullName ||
-                t.metadata?.registrationData?.fullName ||
-                (t.metadata?.registrationDataList?.[0]?.fullName
-                    ? `${t.metadata.registrationDataList[0].fullName} (+${(t.metadata.registrationDataList.length - 1)} more)`
-                    : null) ||
-                `${t.customer?.first_name || ''} ${t.customer?.last_name || ''}`.trim() ||
-                'Unknown';
+                const registrationDataList = t.metadata?.registrationDataList;
+                const isBulk = !!registrationDataList;
 
-            const isBulk = !!t.metadata?.registrationDataList;
+                const fullName =
+                    dbReg?.fullName ||
+                    t.metadata?.registrationData?.fullName ||
+                    (registrationDataList?.[0]?.fullName
+                        ? `${registrationDataList[0].fullName}${registrationDataList.length > 1 ? ` (+${registrationDataList.length - 1} more)` : ''}`
+                        : null) ||
+                    `${t.customer?.first_name || ''} ${t.customer?.last_name || ''}`.trim() ||
+                    'Unknown';
 
-            return {
-                reference: t.reference,
-                amount: t.amount / 100,
-                currency: t.currency || 'NGN',
-                paystackStatus: t.status,
-                paidAt: t.paid_at || t.createdAt,
-                customerEmail: dbReg?.email || t.customer?.email || '',
-                fullName,
-                uniqueId: dbReg?.uniqueId || t.metadata?.uniqueId || null,
-                dbStatus: dbReg?.registrationStatus || null,
-                inDb: !!dbReg,
-                isBulk,
-                bulkCount: t.metadata?.registrationDataList?.length || null,
-            };
-        });
+                const customerEmail =
+                    dbReg?.email ||
+                    t.metadata?.registrationData?.email ||
+                    registrationDataList?.[0]?.email ||
+                    t.customer?.email ||
+                    '';
+
+                const bulkRegistrations = isBulk && registrationDataList
+                    ? registrationDataList.map((r) => ({
+                          fullName: r.fullName || 'Unknown',
+                          email: r.email || '',
+                          title: r.title || '',
+                      }))
+                    : null;
+
+                return {
+                    reference: t.reference,
+                    amount: t.amount / 100,
+                    currency: t.currency || 'NGN',
+                    paystackStatus: t.status,
+                    paidAt: t.paid_at || t.createdAt,
+                    customerEmail,
+                    fullName,
+                    uniqueId: dbReg?.uniqueId || t.metadata?.uniqueId || null,
+                    dbStatus: dbReg?.registrationStatus || null,
+                    inDb: !!dbReg,
+                    isBulk,
+                    bulkCount: registrationDataList?.length || null,
+                    bulkRegistrations,
+                    gatewayResponse: t.gateway_response || null,
+                    authorizationCode: t.authorization?.authorization_code || null,
+                    paymentChannel: t.authorization?.channel || null,
+                };
+            });
 
         return NextResponse.json({
             success: true,
@@ -154,6 +180,13 @@ interface PaystackTransaction {
     status: string;
     paid_at: string;
     createdAt: string;
+    gateway_response: string | null;
+    authorization: {
+        authorization_code: string | null;
+        channel: string | null;
+        card_type: string | null;
+        bank: string | null;
+    } | null;
     customer: {
         email: string;
         first_name: string | null;
@@ -163,7 +196,7 @@ interface PaystackTransaction {
         transaction_type?: string;
         uniqueId?: string;
         registrationData?: { fullName?: string; email?: string };
-        registrationDataList?: Array<{ fullName?: string; email?: string }>;
+        registrationDataList?: Array<{ fullName?: string; email?: string; title?: string }>;
     };
 }
 

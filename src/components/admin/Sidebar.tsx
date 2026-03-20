@@ -14,6 +14,7 @@ import {
   Menu,
   X,
   Banknote,
+  Trash2,
   type LucideIcon,
 } from "lucide-react";
 import { usePathname } from "next/navigation";
@@ -98,6 +99,14 @@ export function AdminSidebar({ onLogout }: { onLogout: () => Promise<void> }) {
             icon={Banknote}
             label="Paystack Payments"
             isActive={isActive("/admin/paystack-payments")}
+            onClick={closeSidebar}
+          />
+
+          <NavItem
+            href="/admin/trash"
+            icon={Trash2}
+            label="Trash"
+            isActive={isActive("/admin/trash")}
             onClick={closeSidebar}
           />
 

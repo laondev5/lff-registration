@@ -9,7 +9,7 @@ export function StoreDeadlineBanner() {
         </div>
         <div className="flex-1">
           <p className="font-bold text-sm sm:text-base leading-snug">
-            ⚠️ Order Deadline: 15th March 2025
+            ⚠️ Order Deadline: 15th March 2026
           </p>
           <p className="text-sm leading-snug mt-0.5 text-black/80">
             Orders placed <strong>after 15th March</strong> will <strong>not</strong> be available for collection at the convention.

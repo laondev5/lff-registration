@@ -199,6 +199,52 @@ export async function sendAccommodationBookingEmail(
     }
 }
 
+export async function sendReRegisterEmail(to: string, name: string) {
+    const transporter = getTransporter();
+
+    const mailOptions = {
+        from: `"GAC 2026 Registration" <${process.env.GMAIL_USER}>`,
+        to: to,
+        subject: 'Action Required: Complete Your GAC 2026 Registration',
+        html: `
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eee; border-radius: 10px;">
+                <h1 style="color: #4F46E5; text-align: center;">Complete Your Registration</h1>
+                <p>Dear <strong>${name}</strong>,</p>
+                <p>We noticed that your registration for the <strong>Global Annual Convention 2026</strong> was not completed successfully.</p>
+
+                <div style="background-color: #fff7ed; padding: 20px; border-radius: 10px; margin: 20px 0; border: 1px solid #fed7aa;">
+                    <p style="margin: 0; color: #9a3412; font-size: 15px;">
+                        <strong>Your registration is currently incomplete.</strong> To secure your spot at GAC 2026, please re-register using the link below.
+                    </p>
+                </div>
+
+                <p>Slots are limited, so we encourage you to complete your registration as soon as possible.</p>
+
+                <p style="text-align: center; margin-top: 30px;">
+                    <a href="${process.env.NEXT_PUBLIC_BASE_URL || 'https://lffat40.livingfaithfoundation.org'}/register" style="background-color: #4F46E5; color: white; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px;">Register Now</a>
+                </p>
+
+                <p style="font-size: 14px; color: #555; margin-top: 20px;">If you believe this message was sent in error or you have already completed your registration, please ignore this email or contact us for assistance.</p>
+
+                <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
+                <p style="font-size: 12px; color: #888; text-align: center;">
+                    Living Faith Foundation<br>
+                    GAC 2026 Planning Committee
+                </p>
+            </div>
+        `,
+    };
+
+    try {
+        await transporter.sendMail(mailOptions);
+        console.log(`Re-register email sent to ${to}`);
+        return true;
+    } catch (error) {
+        console.error("Error sending re-register email:", error);
+        return false;
+    }
+}
+
 export async function sendOrderConfirmationEmail(to: string, name: string, orderId: string) {
     const transporter = getTransporter();
 
