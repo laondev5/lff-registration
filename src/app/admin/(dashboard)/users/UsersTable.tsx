@@ -48,6 +48,7 @@ export default function UsersTable({ users }: { users: User[] }) {
   const [resendingId, setResendingId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
+  const [accommodationFilter, setAccommodationFilter] = useState("All");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [openDropdownId, setOpenDropdownId] = useState<string | null>(null);
@@ -88,18 +89,25 @@ export default function UsersTable({ users }: { users: User[] }) {
         user.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
         user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
         user.uniqueId.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        user.phoneNumber.includes(searchTerm);
+        user.phoneNumber.includes(searchTerm) ||
+        (user.accommodationType || "").toLowerCase().includes(searchTerm.toLowerCase());
 
       const matchesStatus =
         statusFilter === "All" || user.registrationStatus === statusFilter;
+
+      const hasAccommodation = !!user.needsAccommodation && user.needsAccommodation !== "No";
+      const matchesAccommodation =
+        accommodationFilter === "All" ||
+        (accommodationFilter === "With Accommodation" && hasAccommodation) ||
+        (accommodationFilter === "No Accommodation" && !hasAccommodation);
 
       const regDate = user.createdAt ? new Date(user.createdAt) : null;
       const matchesFrom = !dateFrom || (regDate && regDate >= new Date(dateFrom));
       const matchesTo = !dateTo || (regDate && regDate <= new Date(dateTo + "T23:59:59"));
 
-      return matchesSearch && matchesStatus && matchesFrom && matchesTo;
+      return matchesSearch && matchesStatus && matchesAccommodation && matchesFrom && matchesTo;
     });
-  }, [users, searchTerm, statusFilter, dateFrom, dateTo]);
+  }, [users, searchTerm, statusFilter, accommodationFilter, dateFrom, dateTo]);
 
   const totalPages = Math.max(1, Math.ceil(filteredUsers.length / usersPerPage));
 
@@ -110,7 +118,7 @@ export default function UsersTable({ users }: { users: User[] }) {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, statusFilter, dateFrom, dateTo]);
+  }, [searchTerm, statusFilter, accommodationFilter, dateFrom, dateTo]);
 
   const handleDelete = async (uniqueId: string, fullName: string) => {
     const confirmed = window.confirm(
@@ -270,7 +278,7 @@ export default function UsersTable({ users }: { users: User[] }) {
           <div className="flex-1 relative">
             <input
               type="text"
-              placeholder="Search by name, email, ID, or phone..."
+              placeholder="Search by name, email, ID, phone, or accommodation..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -285,6 +293,15 @@ export default function UsersTable({ users }: { users: User[] }) {
             <option value="All">All Statuses</option>
             <option value="Confirmed">Confirmed</option>
             <option value="Pending">Pending</option>
+          </select>
+          <select
+            value={accommodationFilter}
+            onChange={(e) => setAccommodationFilter(e.target.value)}
+            className="border rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+          >
+            <option value="All">All Accommodation</option>
+            <option value="With Accommodation">With Accommodation</option>
+            <option value="No Accommodation">No Accommodation</option>
           </select>
           <button
             onClick={handleRefresh}

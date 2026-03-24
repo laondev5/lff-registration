@@ -34,6 +34,7 @@ export default function SubAdminUsersTable({ users }: { users: User[] }) {
   const [currentPage, setCurrentPage] = useState(1);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
+  const [accommodationFilter, setAccommodationFilter] = useState("All");
   const usersPerPage = 20;
 
   const filteredUsers = useMemo(() => {
@@ -43,14 +44,21 @@ export default function SubAdminUsersTable({ users }: { users: User[] }) {
         user.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
         user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
         user.uniqueId.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        user.phoneNumber.includes(searchTerm);
+        user.phoneNumber.includes(searchTerm) ||
+        (user.accommodationType || "").toLowerCase().includes(searchTerm.toLowerCase());
 
       const matchesStatus =
         statusFilter === "All" || user.registrationStatus === statusFilter;
 
-      return matchesSearch && matchesStatus;
+      const hasAccommodation = !!user.needsAccommodation && user.needsAccommodation !== "No";
+      const matchesAccommodation =
+        accommodationFilter === "All" ||
+        (accommodationFilter === "With Accommodation" && hasAccommodation) ||
+        (accommodationFilter === "No Accommodation" && !hasAccommodation);
+
+      return matchesSearch && matchesStatus && matchesAccommodation;
     });
-  }, [users, searchTerm, statusFilter]);
+  }, [users, searchTerm, statusFilter, accommodationFilter]);
 
   const totalPages = Math.max(1, Math.ceil(filteredUsers.length / usersPerPage));
 
@@ -62,7 +70,7 @@ export default function SubAdminUsersTable({ users }: { users: User[] }) {
   // Reset to page 1 when filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, statusFilter]);
+  }, [searchTerm, statusFilter, accommodationFilter]);
 
   const getExportData = () => {
     return filteredUsers.map(user => ({
@@ -134,7 +142,7 @@ export default function SubAdminUsersTable({ users }: { users: User[] }) {
         <div className="flex-1 relative">
           <input
             type="text"
-            placeholder="Search by name, email, ID, or phone..."
+            placeholder="Search by name, email, ID, phone, or accommodation..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -149,6 +157,15 @@ export default function SubAdminUsersTable({ users }: { users: User[] }) {
           <option value="All">All Statuses</option>
           <option value="Confirmed">Confirmed</option>
           <option value="Pending">Pending</option>
+        </select>
+        <select
+          value={accommodationFilter}
+          onChange={(e) => setAccommodationFilter(e.target.value)}
+          className="border rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+        >
+          <option value="All">All Accommodation</option>
+          <option value="With Accommodation">With Accommodation</option>
+          <option value="No Accommodation">No Accommodation</option>
         </select>
         
         <div className="relative group z-20">
