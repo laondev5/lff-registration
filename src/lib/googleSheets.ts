@@ -106,7 +106,7 @@ export async function appendRegistration(data: any, existingId?: string) {
         '',   // Department Status (New / Member / Just Member)
         '',   // Department
         '',   // SubDepartment
-        'Pending' // Registration Status (Column AB)
+        data.registrationStatus || 'Pending' // Registration Status (Column AB)
     ];
 
     await sheets.spreadsheets.values.append({

@@ -120,9 +120,14 @@ export async function updateAccommodation(uniqueId: string, accommodationData: a
     } catch (err: any) {
         console.warn('Google Sheets sync failed for updateAccommodation:', err);
         if (err.message === 'User not found via Unique ID' || err?.message?.includes('User not found via Unique ID')) {
+            // Row is missing — append with accommodation already set to avoid a second lookup race
             try {
-                await sheetsAppendRegistration(reg, uniqueId);
-                await sheetsUpdateAccommodation(uniqueId, accommodationData);
+                await sheetsAppendRegistration({
+                    ...reg.toObject(),
+                    accommodationType: accommodationData.type,
+                    accommodationPrice: accommodationData.price,
+                    duration: accommodationData.duration || '',
+                }, uniqueId);
             } catch (appendErr) {
                 console.warn('Also failed to append missing user to Google Sheets:', appendErr);
             }
@@ -202,14 +207,17 @@ export async function updateRegistrationStatus(uniqueId: string, status: string)
     try {
         await sheetsUpdateRegistrationStatus(uniqueId, status);
     } catch (err: any) {
-        console.warn('Google Sheets sync failed for updateRegistrationStatus:', err);
         if (err.message === 'User not found via Unique ID' || err?.message?.includes('User not found via Unique ID')) {
+            // Row was never appended to Sheets (e.g. Sheets sync failed at registration time).
+            // Append now with the final status already set — one write, no second lookup.
             try {
-                await sheetsAppendRegistration(reg, uniqueId);
-                await sheetsUpdateRegistrationStatus(uniqueId, status);
+                await sheetsAppendRegistration({ ...reg.toObject(), registrationStatus: status }, uniqueId);
+                console.log(`[Sheets] Appended missing row for ${uniqueId} with status ${status}`);
             } catch (appendErr) {
-                console.warn('Also failed to append missing user to Google Sheets:', appendErr);
+                console.warn(`[Sheets] Failed to append missing row for ${uniqueId}:`, appendErr);
             }
+        } else {
+            console.warn('[Sheets] updateRegistrationStatus sync failed:', err);
         }
     }
 

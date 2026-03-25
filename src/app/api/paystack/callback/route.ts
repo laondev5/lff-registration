@@ -13,6 +13,7 @@ import * as QRCode from 'qrcode';
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const reference = searchParams.get('reference');
+  const isAdminPayment = searchParams.get('admin') === 'true';
 
   if (!reference) {
     return NextResponse.redirect(new URL('/', request.url));
@@ -24,7 +25,10 @@ export async function GET(request: Request) {
 
     if (data.status !== 'success') {
       console.warn(`Payment not successful. Reference: ${reference}, Status: ${data.status}`);
-      return NextResponse.redirect(new URL('/?status=error&message=PaymentNotSuccessful', request.url));
+      const failUrl = isAdminPayment
+        ? '/admin/paystack-payments?status=error&message=PaymentNotSuccessful'
+        : '/?status=error&message=PaymentNotSuccessful';
+      return NextResponse.redirect(new URL(failUrl, request.url));
     }
 
     const type = data.metadata?.transaction_type;
@@ -41,7 +45,9 @@ export async function GET(request: Request) {
         const existingReg = await findByPaymentReference(reference);
         if (existingReg && existingReg.registrationStatus === 'Confirmed') {
           console.log(`[Callback] Reference ${reference} already processed for ${existingReg.uniqueId}`);
-          redirectUrl = `/?status=success&uniqueId=${existingReg.uniqueId}`;
+          redirectUrl = isAdminPayment
+            ? `/admin/paystack-payments?status=success&uniqueId=${existingReg.uniqueId}`
+            : `/?status=success&uniqueId=${existingReg.uniqueId}`;
           break;
         }
 
@@ -79,7 +85,9 @@ export async function GET(request: Request) {
                 console.error(`[Callback] Failed to confirm bulk registration ${uid}:`, err);
               }
             }
-            redirectUrl = `/?status=success&uniqueId=${uniqueIds[0]}&bulk=true&count=${uniqueIds.length}`;
+            redirectUrl = isAdminPayment
+              ? `/admin/paystack-payments?status=success&bulk=true&count=${uniqueIds.length}`
+              : `/?status=success&uniqueId=${uniqueIds[0]}&bulk=true&count=${uniqueIds.length}`;
           } else {
             // Fallback: bulk registrations not pre-saved (shouldn't happen with new flow)
             const registrationDataList = data.metadata?.registrationDataList;
@@ -110,9 +118,13 @@ export async function GET(request: Request) {
                 }
               }
               if (newIds.length > 0) {
-                redirectUrl = `/?status=success&uniqueId=${newIds[0]}&bulk=true&count=${newIds.length}`;
+                redirectUrl = isAdminPayment
+                  ? `/admin/paystack-payments?status=success&bulk=true&count=${newIds.length}`
+                  : `/?status=success&uniqueId=${newIds[0]}&bulk=true&count=${newIds.length}`;
               } else {
-                redirectUrl = `/?status=error&message=RegistrationFailed`;
+                redirectUrl = isAdminPayment
+                  ? `/admin/paystack-payments?status=error&message=RegistrationFailed`
+                  : `/?status=error&message=RegistrationFailed`;
               }
             }
           }
@@ -140,11 +152,15 @@ export async function GET(request: Request) {
               await updateRegistrationStatus(finalUniqueId, 'Confirmed');
             } catch (err) {
               console.error('[Callback] Failed to create registration:', err);
-              redirectUrl = `/?status=error&message=RegistrationSaveFailed`;
+              redirectUrl = isAdminPayment
+                ? `/admin/paystack-payments?status=error&message=RegistrationSaveFailed`
+                : `/?status=error&message=RegistrationSaveFailed`;
               break;
             }
           } else {
-            redirectUrl = `/?status=error&message=MissingRegistrationData`;
+            redirectUrl = isAdminPayment
+              ? `/admin/paystack-payments?status=error&message=MissingRegistrationData`
+              : `/?status=error&message=MissingRegistrationData`;
             break;
           }
 
@@ -172,7 +188,9 @@ export async function GET(request: Request) {
             }
           }
 
-          redirectUrl = `/?status=success&uniqueId=${finalUniqueId}`;
+          redirectUrl = isAdminPayment
+            ? `/admin/paystack-payments?status=success&uniqueId=${finalUniqueId}`
+            : `/?status=success&uniqueId=${finalUniqueId}`;
         }
         break;
       }
@@ -181,9 +199,9 @@ export async function GET(request: Request) {
     return NextResponse.redirect(new URL(redirectUrl, request.url));
   } catch (error) {
     console.error('Callback error:', error);
-    // Include the reference in the error redirect so the user can recover
-    return NextResponse.redirect(
-      new URL(`/?status=error&message=CallbackError&reference=${reference}`, request.url)
-    );
+    const errUrl = isAdminPayment
+      ? `/admin/paystack-payments?status=error&message=CallbackError&reference=${reference}`
+      : `/?status=error&message=CallbackError&reference=${reference}`;
+    return NextResponse.redirect(new URL(errUrl, request.url));
   }
 }

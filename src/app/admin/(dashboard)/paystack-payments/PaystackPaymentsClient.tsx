@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect, useCallback } from "react";
+import { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import {
   Search,
   RefreshCw,
@@ -17,9 +17,10 @@ import {
   Mail,
   Calendar,
   Users,
+  CreditCard,
 } from "lucide-react";
 import { toast } from "react-hot-toast";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 
 interface BulkRegistrant {
   fullName: string;
@@ -50,6 +51,8 @@ const ITEMS_PER_PAGE = 20;
 
 export default function PaystackPaymentsClient() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const toastShown = useRef(false);
   const [entries, setEntries] = useState<PaystackEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -63,6 +66,7 @@ export default function PaystackPaymentsClient() {
   const [selectedRefs, setSelectedRefs] = useState<Set<string>>(new Set());
   const [dismissingRefs, setDismissingRefs] = useState<Set<string>>(new Set());
   const [sendingEmailRefs, setSendingEmailRefs] = useState<Set<string>>(new Set());
+  const [makingPaymentRefs, setMakingPaymentRefs] = useState<Set<string>>(new Set());
   const [dismissedRefs, setDismissedRefs] = useState<Set<string>>(new Set());
   const [bulkActioning, setBulkActioning] = useState(false);
 
@@ -85,6 +89,27 @@ export default function PaystackPaymentsClient() {
   useEffect(() => {
     fetchData();
   }, []);
+
+  // Show toast when returning from Paystack admin payment and clean URL
+  useEffect(() => {
+    if (toastShown.current) return;
+    const status = searchParams.get("status");
+    const isBulk = searchParams.get("bulk") === "true";
+    const count = searchParams.get("count");
+    if (status === "success") {
+      toastShown.current = true;
+      const msg = isBulk
+        ? `Payment successful! ${count} registration(s) have been confirmed.`
+        : "Payment successful! Registration has been confirmed.";
+      toast.success(msg, { duration: 5000 });
+      router.replace("/admin/paystack-payments");
+    } else if (status === "error") {
+      toastShown.current = true;
+      const message = searchParams.get("message") || "Payment failed.";
+      toast.error(`Payment failed: ${message}`);
+      router.replace("/admin/paystack-payments");
+    }
+  }, [searchParams, router]);
 
   const stats = useMemo(() => ({
     total: entries.length,
@@ -260,6 +285,61 @@ export default function PaystackPaymentsClient() {
       toast.error("An error occurred.");
     } finally {
       setDismissingRefs((prev) => {
+        const next = new Set(prev);
+        next.delete(entry.reference);
+        return next;
+      });
+    }
+  };
+
+  const handleMakePayment = async (entry: PaystackEntry) => {
+    const isBulk = entry.isBulk;
+
+    if (!isBulk && !entry.uniqueId) {
+      toast.error("No registration ID found for this entry. Cannot generate payment link.");
+      return;
+    }
+
+    const who = isBulk
+      ? `${entry.bulkCount} registrant(s) in this bulk payment`
+      : `"${entry.fullName}" (${entry.customerEmail})`;
+
+    if (
+      !window.confirm(
+        `Generate a new Paystack payment link for ${who}?\n\nYou will be redirected to the Paystack payment page. After payment you will be returned here and the registration(s) will be confirmed automatically.`
+      )
+    )
+      return;
+
+    setMakingPaymentRefs((prev) => new Set(prev).add(entry.reference));
+    try {
+      const res = await fetch("/api/admin/paystack-transactions/make-payment", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: entry.customerEmail,
+          amount: entry.amount,
+          uniqueId: entry.uniqueId,
+          fullName: entry.fullName,
+          reference: entry.reference,
+          isBulk,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        // Redirect in same tab — callback will bring admin back here
+        window.location.href = data.authorizationUrl;
+      } else {
+        toast.error(data.error || "Failed to generate payment link.");
+        setMakingPaymentRefs((prev) => {
+          const next = new Set(prev);
+          next.delete(entry.reference);
+          return next;
+        });
+      }
+    } catch {
+      toast.error("An error occurred generating the payment link.");
+      setMakingPaymentRefs((prev) => {
         const next = new Set(prev);
         next.delete(entry.reference);
         return next;
@@ -517,6 +597,7 @@ export default function PaystackPaymentsClient() {
                   const isExpanded = expandedRef === e.reference;
                   const isDismissing = dismissingRefs.has(e.reference);
                   const isSendingEmail = sendingEmailRefs.has(e.reference);
+                  const isMakingPayment = makingPaymentRefs.has(e.reference);
 
                   return (
                     <>
@@ -659,7 +740,7 @@ export default function PaystackPaymentsClient() {
                             {isFailed && (
                               <button
                                 onClick={() => handleDelete(e)}
-                                disabled={isDismissing || isSendingEmail}
+                                disabled={isDismissing || isSendingEmail || isMakingPayment}
                                 className="inline-flex items-center px-2.5 py-1.5 rounded-md text-xs font-medium bg-red-50 text-red-700 hover:bg-red-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                               >
                                 {isDismissing ? (
@@ -668,6 +749,22 @@ export default function PaystackPaymentsClient() {
                                   <Trash2 className="w-3 h-3 mr-1" />
                                 )}
                                 Delete
+                              </button>
+                            )}
+
+                            {/* Make Payment (abandoned — payment was never completed; single needs uniqueId, bulk needs reference) */}
+                            {e.paystackStatus === "abandoned" && (e.uniqueId || e.isBulk) && (
+                              <button
+                                onClick={() => handleMakePayment(e)}
+                                disabled={isMakingPayment || isDismissing || isSendingEmail}
+                                className="inline-flex items-center px-2.5 py-1.5 rounded-md text-xs font-medium bg-indigo-50 text-indigo-700 hover:bg-indigo-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                              >
+                                {isMakingPayment ? (
+                                  <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                                ) : (
+                                  <CreditCard className="w-3 h-3 mr-1" />
+                                )}
+                                Make Payment
                               </button>
                             )}
                           </div>
