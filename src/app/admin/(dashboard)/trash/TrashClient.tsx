@@ -69,7 +69,8 @@ export default function TrashClient() {
         r.fullName.toLowerCase().includes(s) ||
         r.email.toLowerCase().includes(s) ||
         r.uniqueId.toLowerCase().includes(s) ||
-        r.phoneNumber?.includes(searchTerm);
+        r.phoneNumber?.includes(searchTerm) ||
+        (r.paymentReference || "").toLowerCase().includes(s);
 
       const matchSource =
         sourceFilter === "All" || r.trashedFrom === sourceFilter;
@@ -202,7 +203,7 @@ export default function TrashClient() {
         <div className="flex-1 relative">
           <input
             type="text"
-            placeholder="Search by name, email, or ID…"
+            placeholder="Search by name, email, ID, or Paystack reference…"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400"

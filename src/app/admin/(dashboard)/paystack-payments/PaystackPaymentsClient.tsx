@@ -18,6 +18,7 @@ import {
   Calendar,
   Users,
   CreditCard,
+  UserPlus,
 } from "lucide-react";
 import { toast } from "react-hot-toast";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -67,8 +68,11 @@ export default function PaystackPaymentsClient() {
   const [dismissingRefs, setDismissingRefs] = useState<Set<string>>(new Set());
   const [sendingEmailRefs, setSendingEmailRefs] = useState<Set<string>>(new Set());
   const [makingPaymentRefs, setMakingPaymentRefs] = useState<Set<string>>(new Set());
+  const [addingToDbRefs, setAddingToDbRefs] = useState<Set<string>>(new Set());
   const [dismissedRefs, setDismissedRefs] = useState<Set<string>>(new Set());
   const [bulkActioning, setBulkActioning] = useState(false);
+  const [bulkAddingToDb, setBulkAddingToDb] = useState(false);
+  const [bulkConfirmingPending, setBulkConfirmingPending] = useState(false);
 
   const fetchData = async () => {
     setLoading(true);
@@ -406,6 +410,166 @@ export default function PaystackPaymentsClient() {
     return entry && isFailedOrAbandoned(entry);
   }).length;
 
+  const selectedNotInDbCount = [...selectedRefs].filter((ref) => {
+    const entry = entries.find((e) => e.reference === ref);
+    return entry && entry.paystackStatus === "success" && !entry.inDb;
+  }).length;
+
+  const selectedPendingCount = [...selectedRefs].filter((ref) => {
+    const entry = entries.find((e) => e.reference === ref);
+    return (
+      entry &&
+      entry.paystackStatus === "success" &&
+      entry.inDb &&
+      entry.dbStatus !== "Confirmed" &&
+      !!entry.uniqueId
+    );
+  }).length;
+
+  const callAddToDbApi = useCallback(async (entriesToAdd: PaystackEntry[]) => {
+    const res = await fetch("/api/admin/paystack-transactions/add-to-db", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        entries: entriesToAdd.map((e) => ({
+          reference: e.reference,
+          email: e.customerEmail,
+          fullName: e.fullName,
+          uniqueId: e.uniqueId,
+          amount: e.amount,
+          isBulk: e.isBulk,
+          bulkRegistrations: e.bulkRegistrations?.map((r) => ({
+            email: r.email,
+            fullName: r.fullName,
+            title: r.title,
+          })),
+        })),
+      }),
+    });
+    return res.json();
+  }, []);
+
+  const handleAddToDb = async (entry: PaystackEntry) => {
+    if (
+      !window.confirm(
+        `Add "${entry.fullName}" to the database?\n\nA confirmation email will be sent to ${
+          entry.isBulk ? `${entry.bulkCount} registrant(s)` : entry.customerEmail
+        }.`
+      )
+    )
+      return;
+
+    setAddingToDbRefs((prev) => new Set(prev).add(entry.reference));
+    try {
+      const data = await callAddToDbApi([entry]);
+      if (data.success) {
+        toast.success(data.message || "Added to database.");
+        // Mark as now in DB optimistically
+        setEntries((prev) =>
+          prev.map((e) =>
+            e.reference === entry.reference ? { ...e, inDb: true, dbStatus: "Confirmed" } : e
+          )
+        );
+      } else {
+        toast.error(data.error || "Failed to add to database.");
+      }
+    } catch {
+      toast.error("An error occurred.");
+    } finally {
+      setAddingToDbRefs((prev) => {
+        const next = new Set(prev);
+        next.delete(entry.reference);
+        return next;
+      });
+    }
+  };
+
+  const handleBulkAddToDb = async () => {
+    const entriesToAdd = filtered.filter(
+      (e) => selectedRefs.has(e.reference) && e.paystackStatus === "success" && !e.inDb
+    );
+    if (entriesToAdd.length === 0) {
+      toast.error("No 'Not in DB' entries selected.");
+      return;
+    }
+    if (
+      !window.confirm(
+        `Add ${entriesToAdd.length} entry(ies) to the database?\n\nConfirmation emails will be sent to all registrants.`
+      )
+    )
+      return;
+
+    setBulkAddingToDb(true);
+    try {
+      const data = await callAddToDbApi(entriesToAdd);
+      if (data.success) {
+        toast.success(data.message || "Entries added to database.");
+        const addedRefs = new Set(entriesToAdd.map((e) => e.reference));
+        setEntries((prev) =>
+          prev.map((e) =>
+            addedRefs.has(e.reference) ? { ...e, inDb: true, dbStatus: "Confirmed" } : e
+          )
+        );
+        setSelectedRefs(new Set());
+      } else {
+        toast.error(data.error || "Action failed.");
+      }
+    } catch {
+      toast.error("An error occurred.");
+    } finally {
+      setBulkAddingToDb(false);
+    }
+  };
+
+  const handleBulkConfirmPending = async () => {
+    const pendingEntries = filtered.filter(
+      (e) =>
+        selectedRefs.has(e.reference) &&
+        e.paystackStatus === "success" &&
+        e.inDb &&
+        e.dbStatus !== "Confirmed" &&
+        !!e.uniqueId
+    );
+    if (pendingEntries.length === 0) {
+      toast.error("No pending entries with a registration ID selected.");
+      return;
+    }
+    if (
+      !window.confirm(
+        `Confirm ${pendingEntries.length} pending registration(s)?\n\nConfirmation emails will be sent to all.`
+      )
+    )
+      return;
+
+    setBulkConfirmingPending(true);
+    try {
+      const res = await fetch("/api/admin/users/bulk-confirm", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          uniqueIds: pendingEntries.map((e) => e.uniqueId!),
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        toast.success(data.message || "Registrations confirmed.");
+        const confirmedUids = new Set(pendingEntries.map((e) => e.uniqueId));
+        setEntries((prev) =>
+          prev.map((e) =>
+            confirmedUids.has(e.uniqueId) ? { ...e, dbStatus: "Confirmed" } : e
+          )
+        );
+        setSelectedRefs(new Set());
+      } else {
+        toast.error(data.error || "Action failed.");
+      }
+    } catch {
+      toast.error("An error occurred.");
+    } finally {
+      setBulkConfirmingPending(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -527,27 +691,54 @@ export default function PaystackPaymentsClient() {
 
       {/* Bulk action bar */}
       {selectedRefs.size > 0 && (
-        <div className="flex items-center gap-3 bg-indigo-50 border border-indigo-200 rounded-lg px-4 py-3">
+        <div className="flex flex-wrap items-center gap-3 bg-indigo-50 border border-indigo-200 rounded-lg px-4 py-3">
           <span className="text-sm font-medium text-indigo-800">
-            {selectedRefs.size} selected ({selectedFailedCount} failed/abandoned)
+            {selectedRefs.size} selected
+            {selectedNotInDbCount > 0 && ` · ${selectedNotInDbCount} not in DB`}
+            {selectedPendingCount > 0 && ` · ${selectedPendingCount} pending`}
+            {selectedFailedCount > 0 && ` · ${selectedFailedCount} failed/abandoned`}
           </span>
-          <div className="flex gap-2 ml-auto">
+          <div className="flex flex-wrap gap-2 ml-auto">
+            {/* Add to DB — for Not in DB entries */}
+            <button
+              onClick={handleBulkAddToDb}
+              disabled={bulkAddingToDb || bulkActioning || bulkConfirmingPending || selectedNotInDbCount === 0}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium bg-orange-600 text-white hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
+            >
+              {bulkAddingToDb ? <Loader2 className="w-3 h-3 animate-spin" /> : <UserPlus className="w-3 h-3" />}
+              Add to DB ({selectedNotInDbCount})
+            </button>
+
+            {/* Confirm Pending — for Pending entries */}
+            <button
+              onClick={handleBulkConfirmPending}
+              disabled={bulkConfirmingPending || bulkActioning || bulkAddingToDb || selectedPendingCount === 0}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
+            >
+              {bulkConfirmingPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <ShieldCheck className="w-3 h-3" />}
+              Confirm Pending ({selectedPendingCount})
+            </button>
+
+            {/* Send Re-register Email — for Failed/Abandoned */}
             <button
               onClick={() => handleBulkAction("email")}
-              disabled={bulkActioning || selectedFailedCount === 0}
+              disabled={bulkActioning || bulkAddingToDb || bulkConfirmingPending || selectedFailedCount === 0}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
             >
               {bulkActioning ? <Loader2 className="w-3 h-3 animate-spin" /> : <Mail className="w-3 h-3" />}
-              Send Re-register Email
+              Send Re-register ({selectedFailedCount})
             </button>
+
+            {/* Delete & Send Email — for Failed/Abandoned */}
             <button
               onClick={() => handleBulkAction("delete")}
-              disabled={bulkActioning || selectedFailedCount === 0}
+              disabled={bulkActioning || bulkAddingToDb || bulkConfirmingPending || selectedFailedCount === 0}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium bg-red-600 text-white hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
             >
               {bulkActioning ? <Loader2 className="w-3 h-3 animate-spin" /> : <Trash2 className="w-3 h-3" />}
-              Delete &amp; Send Email
+              Delete &amp; Email ({selectedFailedCount})
             </button>
+
             <button
               onClick={() => setSelectedRefs(new Set())}
               className="px-3 py-1.5 rounded-md text-xs font-medium text-gray-600 hover:bg-gray-200 transition"
@@ -598,6 +789,7 @@ export default function PaystackPaymentsClient() {
                   const isDismissing = dismissingRefs.has(e.reference);
                   const isSendingEmail = sendingEmailRefs.has(e.reference);
                   const isMakingPayment = makingPaymentRefs.has(e.reference);
+                  const isAddingToDb = addingToDbRefs.has(e.reference);
 
                   return (
                     <>
@@ -715,9 +907,20 @@ export default function PaystackPaymentsClient() {
                               </span>
                             )}
 
-                            {/* Not in DB note */}
+                            {/* Add to DB button (success but not in DB) */}
                             {e.paystackStatus === "success" && !e.inDb && (
-                              <span className="text-xs text-orange-600">Use Recover on Registration page</span>
+                              <button
+                                onClick={() => handleAddToDb(e)}
+                                disabled={isAddingToDb || isDismissing}
+                                className="inline-flex items-center px-2.5 py-1.5 rounded-md text-xs font-medium bg-orange-50 text-orange-700 hover:bg-orange-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                              >
+                                {isAddingToDb ? (
+                                  <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                                ) : (
+                                  <UserPlus className="w-3 h-3 mr-1" />
+                                )}
+                                Add to DB
+                              </button>
                             )}
 
                             {/* Send re-register email (failed / abandoned) */}
