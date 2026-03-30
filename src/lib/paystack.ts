@@ -69,10 +69,10 @@ export async function initializeTransaction(params: {
   callback_url?: string;
   subaccount?: string;
   metadata?: any;
-  type?: 'registration' | 'store';
+  type?: 'registration' | 'store' | 'accommodation';
 }) {
-  const secretKey = params.type === 'registration' 
-    ? process.env.PAYSTACK_REG_SECRET_KEY 
+  const secretKey = (params.type === 'registration' || params.type === 'accommodation')
+    ? process.env.PAYSTACK_REG_SECRET_KEY
     : process.env.PAYSTACK_SECRET_KEY;
     
   if (!secretKey) throw new Error(`Secret key not defined for type: ${params.type || 'default'}`);
@@ -121,9 +121,9 @@ export async function initializeTransaction(params: {
   }
 }
 
-export async function verifyTransaction(reference: string, type?: 'registration' | 'store') {
-  const secretKey = type === 'registration' 
-    ? process.env.PAYSTACK_REG_SECRET_KEY 
+export async function verifyTransaction(reference: string, type?: 'registration' | 'store' | 'accommodation') {
+  const secretKey = (type === 'registration' || type === 'accommodation')
+    ? process.env.PAYSTACK_REG_SECRET_KEY
     : process.env.PAYSTACK_SECRET_KEY;
     
   if (!secretKey) throw new Error(`Secret key not defined for type: ${type || 'default'}`);

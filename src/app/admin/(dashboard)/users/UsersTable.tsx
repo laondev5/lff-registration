@@ -22,6 +22,7 @@ import { saveAs } from "file-saver";
 
 interface User {
   uniqueId: string;
+  title: string;
   fullName: string;
   email: string;
   phoneNumber: string;
@@ -29,12 +30,21 @@ interface User {
   state: string;
   country: string;
   churchDetails: string;
+  areaDistrict: string;
   attendanceType: string;
+  busInterest: string;
+  mealCollection: string;
+  prayerRequest: string;
+  registrationType: string;
+  registrationAmount: string;
   isLFFMember: string;
   needsAccommodation: string;
   accommodationType: string;
+  price: string;
+  duration: string;
   paymentProof: string;
   registrationStatus: string;
+  paymentReference: string;
   gender: string;
   createdAt?: string;
 }
@@ -49,14 +59,29 @@ export default function UsersTable({ users }: { users: User[] }) {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
   const [accommodationFilter, setAccommodationFilter] = useState("All");
+  const [titleFilter, setTitleFilter] = useState("All");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [openDropdownId, setOpenDropdownId] = useState<string | null>(null);
   const [editingEmailId, setEditingEmailId] = useState<string | null>(null);
   const [editEmailValue, setEditEmailValue] = useState("");
   const [savingEmail, setSavingEmail] = useState(false);
   const tableRef = useRef<HTMLDivElement>(null);
   const usersPerPage = 20;
+
+  const availableTitles = useMemo(() => {
+    const titles = [...new Set(users.map((u) => u.title).filter(Boolean))];
+    const order = ["Child", "Teenager", "Bro", "Sis", "Exhorter", "Deacon", "Deaconess", "Pastor", "District Pastor", "Elders", "Minister", "VIP"];
+    return titles.sort((a, b) => {
+      const ai = order.indexOf(a);
+      const bi = order.indexOf(b);
+      if (ai !== -1 && bi !== -1) return ai - bi;
+      if (ai !== -1) return -1;
+      if (bi !== -1) return 1;
+      return a.localeCompare(b);
+    });
+  }, [users]);
 
   const stats = useMemo(() => ({
     total: users.length,
@@ -101,13 +126,16 @@ export default function UsersTable({ users }: { users: User[] }) {
         (accommodationFilter === "With Accommodation" && hasAccommodation) ||
         (accommodationFilter === "No Accommodation" && !hasAccommodation);
 
+      const matchesTitle =
+        titleFilter === "All" || (user.title || "") === titleFilter;
+
       const regDate = user.createdAt ? new Date(user.createdAt) : null;
       const matchesFrom = !dateFrom || (regDate && regDate >= new Date(dateFrom));
       const matchesTo = !dateTo || (regDate && regDate <= new Date(dateTo + "T23:59:59"));
 
-      return matchesSearch && matchesStatus && matchesAccommodation && matchesFrom && matchesTo;
+      return matchesSearch && matchesStatus && matchesAccommodation && matchesTitle && matchesFrom && matchesTo;
     });
-  }, [users, searchTerm, statusFilter, accommodationFilter, dateFrom, dateTo]);
+  }, [users, searchTerm, statusFilter, accommodationFilter, titleFilter, dateFrom, dateTo]);
 
   const totalPages = Math.max(1, Math.ceil(filteredUsers.length / usersPerPage));
 
@@ -118,7 +146,28 @@ export default function UsersTable({ users }: { users: User[] }) {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, statusFilter, accommodationFilter, dateFrom, dateTo]);
+  }, [searchTerm, statusFilter, accommodationFilter, titleFilter, dateFrom, dateTo]);
+
+  // Selection helpers
+  const allFilteredSelected =
+    filteredUsers.length > 0 && filteredUsers.every((u) => selectedIds.has(u.uniqueId));
+  const someSelected = filteredUsers.some((u) => selectedIds.has(u.uniqueId));
+
+  const handleSelectAll = (checked: boolean) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      filteredUsers.forEach((u) => (checked ? next.add(u.uniqueId) : next.delete(u.uniqueId)));
+      return next;
+    });
+  };
+
+  const handleSelectOne = (uniqueId: string, checked: boolean) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      checked ? next.add(uniqueId) : next.delete(uniqueId);
+      return next;
+    });
+  };
 
   const handleDelete = async (uniqueId: string, fullName: string) => {
     const confirmed = window.confirm(
@@ -216,38 +265,59 @@ export default function UsersTable({ users }: { users: User[] }) {
     }
   };
 
-  const getExportData = () =>
-    filteredUsers.map(user => ({
-      ID: user.uniqueId,
-      Name: user.fullName,
+  const getExportData = () => {
+    const source =
+      selectedIds.size > 0
+        ? filteredUsers.filter((u) => selectedIds.has(u.uniqueId))
+        : filteredUsers;
+    return source.map((user) => ({
+      "Unique ID": user.uniqueId,
+      Title: user.title || "",
+      "Full Name": user.fullName,
       Email: user.email,
       Phone: user.phoneNumber,
       WhatsApp: user.whatsapp,
       Gender: user.gender,
       State: user.state,
       Country: user.country,
+      "Area / District": user.areaDistrict || "",
       "Attendance Type": user.attendanceType,
       "Church Details": user.churchDetails,
       "Is LFF Member": user.isLFFMember,
-      "Needs Accommodation": user.needsAccommodation ? "Yes" : "No",
-      "Accommodation Type": user.accommodationType || "N/A",
+      "Registration Type": user.registrationType || "",
+      "Registration Amount": user.registrationAmount || "",
+      "Bus Interest": user.busInterest || "",
+      "Meal Collection": user.mealCollection || "",
+      "Prayer Request": user.prayerRequest || "",
+      "Needs Accommodation": user.needsAccommodation && user.needsAccommodation !== "No" ? "Yes" : "No",
+      "Accommodation Type": user.accommodationType || "",
+      "Accommodation Price": user.price || "",
+      "Accommodation Duration": user.duration || "",
+      "Payment Reference": user.paymentReference || "",
       Status: user.registrationStatus,
-      "Registered On": user.createdAt ? new Date(user.createdAt).toLocaleDateString() : "—",
+      "Registered On": user.createdAt
+        ? new Date(user.createdAt).toLocaleDateString("en-NG", { day: "numeric", month: "short", year: "numeric" })
+        : "—",
     }));
+  };
 
   const exportToCSV = () => {
-    const worksheet = XLSX.utils.json_to_sheet(getExportData());
+    const data = getExportData();
+    const worksheet = XLSX.utils.json_to_sheet(data);
     const blob = new Blob([XLSX.utils.sheet_to_csv(worksheet)], { type: "text/csv;charset=utf-8;" });
-    saveAs(blob, `registrations_export_${new Date().toISOString().split('T')[0]}.csv`);
+    const label = selectedIds.size > 0 ? `selected_${selectedIds.size}` : "filtered";
+    saveAs(blob, `registrations_${label}_${new Date().toISOString().split("T")[0]}.csv`);
   };
 
   const exportToExcel = () => {
-    const worksheet = XLSX.utils.json_to_sheet(getExportData());
+    const data = getExportData();
+    const worksheet = XLSX.utils.json_to_sheet(data);
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "Registrations");
     const buffer = XLSX.write(workbook, { bookType: "xlsx", type: "array" });
     const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;charset=UTF-8" });
-    saveAs(blob, `registrations_export_${new Date().toISOString().split('T')[0]}.xlsx`);
+    const label = selectedIds.size > 0 ? `selected_${selectedIds.size}` : "filtered";
+    saveAs(blob, `registrations_${label}_${new Date().toISOString().split("T")[0]}.xlsx`);
   };
 
   return (
@@ -302,6 +372,16 @@ export default function UsersTable({ users }: { users: User[] }) {
             <option value="All">All Accommodation</option>
             <option value="With Accommodation">With Accommodation</option>
             <option value="No Accommodation">No Accommodation</option>
+          </select>
+          <select
+            value={titleFilter}
+            onChange={(e) => setTitleFilter(e.target.value)}
+            className="border rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+          >
+            <option value="All">All Titles</option>
+            {availableTitles.map((t) => (
+              <option key={t} value={t}>{t}</option>
+            ))}
           </select>
           <button
             onClick={handleRefresh}
@@ -362,11 +442,57 @@ export default function UsersTable({ users }: { users: User[] }) {
         </div>
       </div>
 
+      {/* Selection bar */}
+      {someSelected && (
+        <div className="flex flex-wrap items-center gap-3 bg-indigo-50 border border-indigo-200 rounded-lg px-4 py-3">
+          <span className="text-sm font-medium text-indigo-800">
+            {selectedIds.size} of {filteredUsers.length} selected
+          </span>
+          <div className="flex gap-2 ml-auto">
+            <div className="relative group z-20">
+              <button className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium bg-green-600 text-white hover:bg-green-700 transition">
+                <Download className="w-3 h-3" /> Export {selectedIds.size} selected
+              </button>
+              <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg border border-gray-100 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-30">
+                <ul className="py-1">
+                  <li>
+                    <button onClick={exportToCSV} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                      Export to CSV
+                    </button>
+                  </li>
+                  <li>
+                    <button onClick={exportToExcel} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                      Export to Excel
+                    </button>
+                  </li>
+                </ul>
+              </div>
+            </div>
+            <button
+              onClick={() => setSelectedIds(new Set())}
+              className="px-3 py-1.5 rounded-md text-xs font-medium text-gray-600 hover:bg-gray-200 transition"
+            >
+              Clear selection
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="bg-white shadow-md rounded-lg overflow-hidden border" ref={tableRef}>
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
+                <th className="px-3 py-3 text-left">
+                  <input
+                    type="checkbox"
+                    checked={allFilteredSelected}
+                    ref={(el) => { if (el) el.indeterminate = someSelected && !allFilteredSelected; }}
+                    onChange={(e) => handleSelectAll(e.target.checked)}
+                    className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                    title={allFilteredSelected ? "Deselect all" : "Select all filtered"}
+                  />
+                </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name/Details</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Contact</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Registration Info</th>
@@ -379,7 +505,15 @@ export default function UsersTable({ users }: { users: User[] }) {
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {paginatedUsers.map((user) => (
-                <tr key={user.uniqueId} className="hover:bg-gray-50">
+                <tr key={user.uniqueId} className={`hover:bg-gray-50 ${selectedIds.has(user.uniqueId) ? "bg-indigo-50" : ""}`}>
+                  <td className="px-3 py-4">
+                    <input
+                      type="checkbox"
+                      checked={selectedIds.has(user.uniqueId)}
+                      onChange={(e) => handleSelectOne(user.uniqueId, e.target.checked)}
+                      className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                    />
+                  </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="text-sm font-medium text-gray-900">
                       <a href={`/admin/users/${user.uniqueId}`} className="hover:text-primary hover:underline">
@@ -388,6 +522,11 @@ export default function UsersTable({ users }: { users: User[] }) {
                     </div>
                     <div className="text-xs text-gray-400">{user.uniqueId}</div>
                     <div className="text-sm text-gray-500">{user.gender}</div>
+                    {user.title && (
+                      <span className="inline-block text-xs px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 mt-0.5">
+                        {user.title}
+                      </span>
+                    )}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="text-sm text-gray-900">{user.email}</div>
@@ -502,7 +641,7 @@ export default function UsersTable({ users }: { users: User[] }) {
               ))}
               {paginatedUsers.length === 0 && (
                 <tr>
-                  <td colSpan={8} className="px-6 py-4 text-center text-sm text-gray-500">
+                  <td colSpan={9} className="px-6 py-4 text-center text-sm text-gray-500">
                     No users found.
                   </td>
                 </tr>

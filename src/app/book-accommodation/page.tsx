@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import {
   Loader2,
   CheckCircle,
@@ -8,13 +9,11 @@ import {
   User,
   Mail,
   Phone,
-  Upload,
   Building2,
   Home,
   ArrowRight,
   ArrowLeft,
-  Copy,
-  Check,
+  CreditCard,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -27,13 +26,6 @@ interface Accommodation {
   isFullyBooked?: boolean;
 }
 
-interface PaymentAccount {
-  accountName: string;
-  accountNumber: string;
-  bankName: string;
-  type: string;
-}
-
 interface UserInfo {
   uniqueId: string;
   fullName: string;
@@ -41,8 +33,12 @@ interface UserInfo {
   phoneNumber: string;
 }
 
-export default function BookAccommodationPage() {
-  const [step, setStep] = useState(1); // 1: Lookup, 2: Details, 3: Select Accommodation, 4: Payment, 5: Upload Proof
+function BookAccommodationContent() {
+  const searchParams = useSearchParams();
+  const statusParam = searchParams.get("status");
+  const bookingIdParam = searchParams.get("bookingId");
+
+  const [step, setStep] = useState(1); // 1: Lookup, 2: Details, 3: Select Accommodation, 4: Pay
   const [lookupValue, setLookupValue] = useState("");
   const [lookingUp, setLookingUp] = useState(false);
   const [foundUser, setFoundUser] = useState<UserInfo | null>(null);
@@ -56,18 +52,11 @@ export default function BookAccommodationPage() {
   const [selectedAccommodation, setSelectedAccommodation] =
     useState<Accommodation | null>(null);
 
-  const [paymentAccount, setPaymentAccount] = useState<PaymentAccount | null>(
-    null,
-  );
-  const [loadingAccount, setLoadingAccount] = useState(false);
-  const [copied, setCopied] = useState(false);
+  const [paying, setPaying] = useState(false);
 
-  const [proofFile, setProofFile] = useState<File | null>(null);
-  const [proofPreview, setProofPreview] = useState<string | null>(null);
-
-  const [submitting, setSubmitting] = useState(false);
-  const [success, setSuccess] = useState(false);
-  const [bookingId, setBookingId] = useState("");
+  // Show success state if redirected back from Paystack
+  const isSuccess = statusParam === "success";
+  const isError = statusParam === "error";
 
   // Fetch accommodations
   useEffect(() => {
@@ -80,18 +69,6 @@ export default function BookAccommodationPage() {
       .catch((err) => console.error(err))
       .finally(() => setLoading(false));
   }, []);
-
-  // Fetch payment account when reaching step 4
-  useEffect(() => {
-    if (step === 4) {
-      setLoadingAccount(true);
-      fetch("/api/payment-account?type=accommodation")
-        .then((res) => res.json())
-        .then((data) => setPaymentAccount(data.account))
-        .catch((err) => console.error(err))
-        .finally(() => setLoadingAccount(false));
-    }
-  }, [step]);
 
   const handleLookup = async () => {
     if (!lookupValue.trim()) return;
@@ -120,56 +97,56 @@ export default function BookAccommodationPage() {
     }
   };
 
-  const handleProofSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setProofFile(file);
-      setProofPreview(URL.createObjectURL(file));
-    }
-  };
-
-  const copyToClipboard = (text: string) => {
-    navigator.clipboard.writeText(text);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
-
-  const handleSubmitBooking = async () => {
+  const handlePayWithPaystack = async () => {
     if (!selectedAccommodation || !name || !email || !phone) return;
-    setSubmitting(true);
+    setPaying(true);
+
+    const priceNum = parseInt(
+      (selectedAccommodation.price || "0").toString().replace(/[^0-9]/g, "")
+    );
 
     try {
-      const formData = new FormData();
-      formData.append("name", name);
-      formData.append("email", email);
-      formData.append("phone", phone);
-      formData.append("accommodationType", selectedAccommodation.name);
-      formData.append("accommodationId", selectedAccommodation.id || "");
-      formData.append("amount", selectedAccommodation.price);
-      if (foundUser?.uniqueId) formData.append("uniqueId", foundUser.uniqueId);
-      if (proofFile) formData.append("file", proofFile);
-
-      const res = await fetch("/api/booking-requests", {
+      const res = await fetch("/api/paystack/initialize", {
         method: "POST",
-        body: formData,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email,
+          amount: priceNum,
+          type: "accommodation",
+          metadata: {
+            transaction_type: "accommodation",
+            name,
+            email,
+            phone,
+            accommodationType: selectedAccommodation.name,
+            accommodationId: selectedAccommodation.id || "",
+            amount: selectedAccommodation.price,
+            uniqueId: foundUser?.uniqueId || "",
+          },
+        }),
       });
-      const result = await res.json();
 
-      if (result.success) {
-        setBookingId(result.id);
-        setSuccess(true);
+      const result = await res.json();
+      if (result.success && result.data?.authorization_url) {
+        window.location.href = result.data.authorization_url;
       } else {
-        alert("Booking failed: " + result.error);
+        alert("Payment initialization failed: " + (result.error || "Unknown error"));
+        setPaying(false);
       }
     } catch (err) {
       console.error(err);
       alert("An error occurred. Please try again.");
-    } finally {
-      setSubmitting(false);
+      setPaying(false);
     }
   };
 
-  if (success) {
+  const formatPrice = (price: string | undefined) => {
+    if (!price || price === "Free" || price === "0") return "Free";
+    const num = parseInt(price.toString().replace(/[^0-9]/g, "") || "0");
+    return `₦${num.toLocaleString()}`;
+  };
+
+  if (isSuccess) {
     return (
       <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4">
         <div className="max-w-md w-full bg-card border border-white/10 rounded-2xl p-8 text-center animate-in zoom-in duration-300">
@@ -177,19 +154,38 @@ export default function BookAccommodationPage() {
             <CheckCircle className="w-10 h-10 text-green-500" />
           </div>
           <h2 className="text-2xl font-bold text-white mb-2">
-            Booking Submitted!
+            Booking Confirmed!
           </h2>
-          <p className="text-gray-400 mb-2">
-            Your booking ID is{" "}
-            <strong className="text-primary">{bookingId}</strong>.
-          </p>
+          {bookingIdParam && (
+            <p className="text-gray-400 mb-2">
+              Your booking ID is{" "}
+              <strong className="text-primary">{bookingIdParam}</strong>.
+            </p>
+          )}
           <p className="text-sm text-gray-500 mb-8">
-            {proofFile
-              ? "Your payment proof has been uploaded. We'll review and confirm your booking soon."
-              : "Please complete payment and contact us with proof of payment."}
+            Your payment was successful. You will receive a confirmation email shortly.
           </p>
           <Link href="/" className="btn-primary inline-flex items-center">
             Return Home
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4">
+        <div className="max-w-md w-full bg-card border border-white/10 rounded-2xl p-8 text-center">
+          <div className="w-20 h-20 bg-red-500/20 rounded-full flex items-center justify-center mx-auto mb-6">
+            <CreditCard className="w-10 h-10 text-red-500" />
+          </div>
+          <h2 className="text-2xl font-bold text-white mb-2">Payment Failed</h2>
+          <p className="text-sm text-gray-500 mb-8">
+            Something went wrong with your payment. Please try again.
+          </p>
+          <Link href="/book-accommodation" className="btn-primary inline-flex items-center">
+            Try Again
           </Link>
         </div>
       </div>
@@ -212,7 +208,7 @@ export default function BookAccommodationPage() {
 
         {/* Step Indicator */}
         <div className="flex items-center justify-center mb-10 gap-1">
-          {[1, 2, 3, 4, 5].map((s) => (
+          {[1, 2, 3, 4].map((s) => (
             <div
               key={s}
               className={`h-1.5 rounded-full transition-all ${step >= s ? "bg-primary w-10" : "bg-white/10 w-6"}`}
@@ -366,42 +362,44 @@ export default function BookAccommodationPage() {
                   {accommodations.map((acc, idx) => {
                     const isSoldOut = acc.isFullyBooked;
                     return (
-                    <button
-                      key={idx}
-                      onClick={() => !isSoldOut && setSelectedAccommodation(acc)}
-                      disabled={isSoldOut}
-                      className={`relative w-full text-left p-4 rounded-xl border-2 transition-all ${
-                        isSoldOut
-                          ? "border-red-900/30 bg-red-950/20 opacity-60 cursor-not-allowed"
-                          : selectedAccommodation?.name === acc.name
-                          ? "border-primary bg-primary/10"
-                          : "border-white/10 bg-white/5 hover:border-white/30"
-                      }`}
-                    >
-                      {isSoldOut && (
-                        <div className="absolute top-2 right-2 bg-red-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full z-10">
-                          SOLD OUT
-                        </div>
-                      )}
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className={`font-bold ${isSoldOut ? 'text-gray-400 line-through' : 'text-white'}`}>{acc.name}</p>
-                          {acc.duration && (
-                            <p className="text-xs text-gray-400 mt-1">
-                              {acc.duration}
+                      <button
+                        key={idx}
+                        onClick={() => !isSoldOut && setSelectedAccommodation(acc)}
+                        disabled={isSoldOut}
+                        className={`relative w-full text-left p-4 rounded-xl border-2 transition-all ${
+                          isSoldOut
+                            ? "border-red-900/30 bg-red-950/20 opacity-60 cursor-not-allowed"
+                            : selectedAccommodation?.name === acc.name
+                            ? "border-primary bg-primary/10"
+                            : "border-white/10 bg-white/5 hover:border-white/30"
+                        }`}
+                      >
+                        {isSoldOut && (
+                          <div className="absolute top-2 right-2 bg-red-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full z-10">
+                            SOLD OUT
+                          </div>
+                        )}
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className={`font-bold ${isSoldOut ? "text-gray-400 line-through" : "text-white"}`}>
+                              {acc.name}
                             </p>
-                          )}
-                          {acc.description && (
-                            <p className="text-sm text-gray-400 mt-1">
-                              {acc.description}
-                            </p>
-                          )}
+                            {acc.duration && (
+                              <p className="text-xs text-gray-400 mt-1">
+                                {acc.duration}
+                              </p>
+                            )}
+                            {acc.description && (
+                              <p className="text-sm text-gray-400 mt-1">
+                                {acc.description}
+                              </p>
+                            )}
+                          </div>
+                          <p className={`text-lg font-black ${isSoldOut ? "text-gray-500" : "text-primary"}`}>
+                            {formatPrice(acc.price)}
+                          </p>
                         </div>
-                        <p className={`text-lg font-black ${isSoldOut ? 'text-gray-500' : 'text-primary'}`}>
-                          {acc.price === "Free" || acc.price === "0" || !acc.price ? "Free" : `₦${parseInt(acc.price.toString().replace(/[^0-9]/g, "") || "0").toLocaleString()}`}
-                        </p>
-                      </div>
-                    </button>
+                      </button>
                     );
                   })}
                 </div>
@@ -419,173 +417,84 @@ export default function BookAccommodationPage() {
                   disabled={!selectedAccommodation}
                   className="flex-1 btn-primary py-3 font-bold flex items-center justify-center gap-2 disabled:opacity-50"
                 >
-                  Payment <ArrowRight className="w-5 h-5" />
+                  Pay <ArrowRight className="w-5 h-5" />
                 </button>
               </div>
             </div>
           )}
 
-          {/* Step 4: Payment Info */}
+          {/* Step 4: Pay with Paystack */}
           {step === 4 && (
-            <div className="space-y-4">
+            <div className="space-y-6">
               <h2 className="text-xl font-bold text-white flex items-center gap-2">
-                <Building2 className="w-5 h-5" /> Payment Information
+                <CreditCard className="w-5 h-5" /> Complete Payment
               </h2>
 
-              {/* Selected Accommodation Summary */}
+              {/* Booking Summary */}
               {selectedAccommodation && (
-                <div className="bg-white/5 rounded-lg p-4 border border-white/10">
-                  <p className="text-sm text-gray-400">You&apos;re booking:</p>
-                  <p className="text-lg font-bold text-white">
-                    {selectedAccommodation.name}
-                  </p>
-                  <p className="text-2xl font-black text-primary mt-1">
-                    {selectedAccommodation.price === "Free" || selectedAccommodation.price === "0" || !selectedAccommodation.price ? "Free" : `₦${parseInt(selectedAccommodation.price.toString().replace(/[^0-9]/g, "") || "0").toLocaleString()}`}
-                  </p>
-                </div>
-              )}
-
-              {loadingAccount ? (
-                <div className="flex items-center justify-center py-8">
-                  <Loader2 className="w-8 h-8 text-primary animate-spin" />
-                </div>
-              ) : paymentAccount ? (
-                <div className="bg-primary/10 border border-primary/20 rounded-xl p-5 space-y-3">
-                  <p className="text-sm text-primary font-medium">
-                    Transfer to:
-                  </p>
-                  <div>
-                    <p className="text-xs text-gray-400">Bank</p>
-                    <p className="text-lg font-bold text-white">
-                      {paymentAccount.bankName}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-gray-400">Account Number</p>
-                    <div className="flex items-center gap-2">
-                      <p className="text-2xl font-bold text-white tracking-widest">
-                        {paymentAccount.accountNumber}
-                      </p>
-                      <button
-                        onClick={() =>
-                          copyToClipboard(paymentAccount.accountNumber)
-                        }
-                        className="p-1.5 rounded-md bg-white/10 hover:bg-white/20 text-gray-300"
-                      >
-                        {copied ? (
-                          <Check className="w-4 h-4 text-green-400" />
-                        ) : (
-                          <Copy className="w-4 h-4" />
-                        )}
-                      </button>
+                <div className="bg-white/5 rounded-xl p-5 border border-white/10 space-y-3">
+                  <p className="text-xs text-gray-400 uppercase tracking-wider font-medium">Booking Summary</p>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-white font-bold text-lg">{selectedAccommodation.name}</p>
+                      {selectedAccommodation.duration && (
+                        <p className="text-xs text-gray-400 mt-0.5">{selectedAccommodation.duration}</p>
+                      )}
                     </div>
+                    <p className="text-2xl font-black text-primary">{formatPrice(selectedAccommodation.price)}</p>
                   </div>
-                  <div>
-                    <p className="text-xs text-gray-400">Account Name</p>
-                    <p className="text-lg font-semibold text-white">
-                      {paymentAccount.accountName}
-                    </p>
+                  <div className="border-t border-white/10 pt-3 space-y-1">
+                    <p className="text-sm text-gray-300"><span className="text-gray-500">Name:</span> {name}</p>
+                    <p className="text-sm text-gray-300"><span className="text-gray-500">Email:</span> {email}</p>
+                    <p className="text-sm text-gray-300"><span className="text-gray-500">Phone:</span> {phone}</p>
                   </div>
-                </div>
-              ) : (
-                <div className="text-center py-6 text-gray-400 text-sm">
-                  No payment account configured. Contact admin.
                 </div>
               )}
 
-              <div className="flex gap-3 pt-2">
+              <div className="flex gap-3">
                 <button
                   onClick={() => setStep(3)}
-                  className="flex-1 bg-white/10 text-white py-3 rounded-lg font-bold flex items-center justify-center gap-2 hover:bg-white/20"
+                  disabled={paying}
+                  className="flex-1 bg-white/10 text-white py-3 rounded-lg font-bold flex items-center justify-center gap-2 hover:bg-white/20 disabled:opacity-50"
                 >
                   <ArrowLeft className="w-5 h-5" /> Back
                 </button>
                 <button
-                  onClick={() => setStep(5)}
-                  className="flex-1 btn-primary py-3 font-bold flex items-center justify-center gap-2"
-                >
-                  Upload Proof <ArrowRight className="w-5 h-5" />
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* Step 5: Upload Proof & Submit */}
-          {step === 5 && (
-            <div className="space-y-4">
-              <h2 className="text-xl font-bold text-white flex items-center gap-2">
-                <Upload className="w-5 h-5" /> Upload Payment Proof
-              </h2>
-
-              <div className="border-2 border-dashed border-white/20 rounded-xl p-8 text-center hover:border-primary/50 transition-colors">
-                {proofPreview ? (
-                  <div className="space-y-4">
-                    <img
-                      src={proofPreview}
-                      alt="Proof"
-                      className="max-h-40 mx-auto rounded-lg"
-                    />
-                    <p className="text-sm text-gray-400">{proofFile?.name}</p>
-                    <button
-                      onClick={() => {
-                        setProofFile(null);
-                        setProofPreview(null);
-                      }}
-                      className="text-red-400 hover:text-red-300 text-sm font-medium"
-                    >
-                      Remove & choose another
-                    </button>
-                  </div>
-                ) : (
-                  <label className="cursor-pointer block">
-                    <Upload className="w-10 h-10 text-gray-500 mx-auto mb-3" />
-                    <p className="text-gray-300 font-medium">
-                      Click to upload payment proof
-                    </p>
-                    <p className="text-xs text-gray-500 mt-1">
-                      JPG, PNG, or PDF
-                    </p>
-                    <input
-                      type="file"
-                      accept="image/*,.pdf"
-                      onChange={handleProofSelect}
-                      className="hidden"
-                    />
-                  </label>
-                )}
-              </div>
-
-              <p className="text-xs text-gray-500 text-center">
-                You can also submit without proof and send it later.
-              </p>
-
-              <div className="flex gap-3 pt-2">
-                <button
-                  onClick={() => setStep(4)}
-                  className="flex-1 bg-white/10 text-white py-3 rounded-lg font-bold flex items-center justify-center gap-2 hover:bg-white/20"
-                >
-                  <ArrowLeft className="w-5 h-5" /> Back
-                </button>
-                <button
-                  onClick={handleSubmitBooking}
-                  disabled={submitting}
+                  onClick={handlePayWithPaystack}
+                  disabled={paying}
                   className="flex-1 btn-primary py-3 font-bold flex items-center justify-center gap-2 disabled:opacity-50"
                 >
-                  {submitting ? (
+                  {paying ? (
                     <>
-                      <Loader2 className="w-5 h-5 animate-spin" /> Submitting...
+                      <Loader2 className="w-5 h-5 animate-spin" /> Redirecting…
                     </>
                   ) : (
                     <>
-                      Submit Booking <CheckCircle className="w-5 h-5" />
+                      <CreditCard className="w-5 h-5" /> Pay with Paystack
                     </>
                   )}
                 </button>
               </div>
+
+              <p className="text-xs text-gray-500 text-center">
+                You will be redirected to Paystack to complete your payment securely.
+              </p>
             </div>
           )}
         </div>
       </div>
     </div>
+  );
+}
+
+export default function BookAccommodationPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <Loader2 className="w-8 h-8 text-primary animate-spin" />
+      </div>
+    }>
+      <BookAccommodationContent />
+    </Suspense>
   );
 }

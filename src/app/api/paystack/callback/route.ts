@@ -7,8 +7,10 @@ import {
   updatePaymentReference,
   getUserById
 } from '@/lib/registrationService';
-import { sendRegistrationEmail } from '@/lib/email';
+import { sendRegistrationEmail, sendAccommodationBookingEmail } from '@/lib/email';
 import * as QRCode from 'qrcode';
+import { connectDB } from '@/lib/mongodb';
+import Booking from '@/models/Booking';
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -20,7 +22,7 @@ export async function GET(request: Request) {
   }
 
   try {
-    const typeFromQuery = searchParams.get('type') as 'registration' | 'store' | undefined;
+    const typeFromQuery = searchParams.get('type') as 'registration' | 'store' | 'accommodation' | undefined;
     const data = await verifyTransaction(reference, typeFromQuery);
 
     if (data.status !== 'success') {
@@ -38,6 +40,39 @@ export async function GET(request: Request) {
       case 'store':
         redirectUrl = `/store/order-success?orderId=${reference}&clearCart=true`;
         break;
+
+      case 'accommodation': {
+        const bookingMeta = data.metadata;
+        try {
+          await connectDB();
+          const newBooking = await Booking.create({
+            name: bookingMeta?.name || '',
+            email: bookingMeta?.email || '',
+            phone: bookingMeta?.phone || '',
+            accommodationType: bookingMeta?.accommodationType || '',
+            accommodationId: bookingMeta?.accommodationId || '',
+            amount: bookingMeta?.amount || '0',
+            paymentProof: '',
+            uniqueId: bookingMeta?.uniqueId || '',
+            paymentReference: reference,
+            status: 'Confirmed',
+          });
+
+          sendAccommodationBookingEmail(
+            bookingMeta?.email,
+            bookingMeta?.name,
+            bookingMeta?.accommodationType,
+            bookingMeta?.amount,
+            bookingMeta?.uniqueId || undefined
+          ).catch((err) => console.error('[Callback] Accommodation email failed:', err));
+
+          redirectUrl = `/book-accommodation?status=success&bookingId=${newBooking._id.toString()}`;
+        } catch (err) {
+          console.error('[Callback] Failed to create accommodation booking:', err);
+          redirectUrl = `/book-accommodation?status=error`;
+        }
+        break;
+      }
 
       case 'registration': {
         // --- IDEMPOTENCY CHECK ---

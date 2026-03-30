@@ -41,6 +41,9 @@ export async function POST(request: Request) {
       case 'store':
         subaccount = process.env.PAYSTACK_STORE_SUBACCOUNT || '';
         break;
+      case 'accommodation':
+        subaccount = process.env.PAYSTACK_REGISTRATION_SUBACCOUNT || '';
+        break;
       case 'registration':
         subaccount = process.env.PAYSTACK_REGISTRATION_SUBACCOUNT || '';
         
@@ -113,7 +116,7 @@ export async function POST(request: Request) {
       amount: parsedAmount,
       callback_url: callbackUrl,
       subaccount,
-      type: type as 'registration' | 'store',
+      type: type as 'registration' | 'store' | 'accommodation',
       metadata: {
         ...metadata,
         transaction_type: type,

@@ -10,6 +10,7 @@ export interface IBooking extends Document {
     paymentProof: string;
     uniqueId?: string; // Optional link to a registered user
     status: string; // e.g., 'Pending', 'Confirmed'
+    paymentReference?: string;
     createdAt: Date;
 }
 
@@ -23,6 +24,7 @@ const BookingSchema = new Schema({
     paymentProof: { type: String, default: '' },
     uniqueId: { type: String, default: '' },
     status: { type: String, default: 'Pending' },
+    paymentReference: { type: String, default: '' },
     createdAt: { type: Date, default: Date.now },
 });
 
